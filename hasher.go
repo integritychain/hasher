@@ -6,8 +6,8 @@ package hasher
 
 import (
 	"errors"
-	"fmt"
 	"log"
+	"math/big"
 	"math/bits"
 )
 
@@ -22,6 +22,7 @@ type HashType uint32
 
 type Hasher struct {
 	hashAlgorithm HashType
+	lenProcessed  big.Int
 	hash256       *[8]uint32 // TODO: Single pointer doable?
 	hash512       *[8]uint64
 }
@@ -149,14 +150,10 @@ func (hasher *Hasher) HashAlgorithm() HashType {
 	return hasher.hashAlgorithm
 }
 
-// Hash does something else, eh? // FOR NOW ASSUME SHA256!!!!!!!!!!!!!!!!
-func (hasher *Hasher) Write(message []byte) *Hasher {
-	fmt.Println("in hash function")
-	if hasher.hashAlgorithm == None {
-		log.Fatal("You must set hash algorithm prior to submitting data")
+func (hasher *Hasher) oneBlock(message []byte) *Hasher {
+	if len(message) != 64 {
+		log.Fatal("oneBlock got an odd sized block.")
 	}
-	// Do hash work here
-
 	// Calculate message schedule of 64 W's
 	var w [64]uint32
 
@@ -202,12 +199,52 @@ func (hasher *Hasher) Write(message []byte) *Hasher {
 	hasher.hash256[7] += h
 
 	return hasher
+
+}
+
+func (hasher *Hasher) lastBlock(message []byte) *Hasher {
+
+	var lastBlock [64]byte
+	len1 := copy(lastBlock[:], message)
+	lastBlock[len1] = 128
+	//lastBlock[63] = (byte)(len&0xFF) * 8
+	x := hasher.lenProcessed.Bytes()
+	if len(x) > 1 {
+		lastBlock[62] = hasher.lenProcessed.Bytes()[0]
+		lastBlock[63] = hasher.lenProcessed.Bytes()[1]
+	} else {
+		lastBlock[63] = hasher.lenProcessed.Bytes()[0]
+	}
+	return hasher.oneBlock(lastBlock[:])
+
+}
+
+// Hash does something else, eh? // FOR NOW ASSUME SHA256!!!!!!!!!!!!!!!!
+func (hasher *Hasher) Write(message []byte) *Hasher {
+	if hasher.hashAlgorithm == None {
+		log.Fatal("You must set hash algorithm prior to submitting data")
+	}
+	var index int
+	for len(message)-index > 63 {
+		hasher.oneBlock(message[index : index+64])
+		index += 64
+		hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(64*8))
+	}
+	hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(int64(len(message[index:]))*8))
+	return hasher.lastBlock(message[index:])
 }
 
 // Sum as well eh?
 func (hasher *Hasher) Sum() interface{} {
 	if hasher.hashAlgorithm == Sha224 || hasher.hashAlgorithm == Sha256 {
-		return hasher.hash256
+		var digest [32]byte
+		for i, s := range hasher.hash256 {
+			digest[i*4] = byte(s >> 24)
+			digest[i*4+1] = byte(s >> 16)
+			digest[i*4+2] = byte(s >> 8)
+			digest[i*4+3] = byte(s)
+		}
+		return digest
 	} else if hasher.hashAlgorithm == Sha384 || hasher.hashAlgorithm == Sha512 || hasher.hashAlgorithm == Sha512t224 || hasher.hashAlgorithm == Sha512t256 {
 		return hasher.hash512
 	} else {

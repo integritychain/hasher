@@ -2,7 +2,6 @@ package hasher
 
 import (
 	"crypto/sha256"
-	"fmt"
 	"testing"
 )
 
@@ -20,20 +19,18 @@ func TestNew2(t *testing.T) {
 	}
 }
 
-func TestNew3(t *testing.T) {
-	var msg = make([]byte, 64)
-	str := "abc"
-	for k, v := range []byte(str) {
-		msg[k] = byte(v)
+func TestSha256(t *testing.T) {
+
+	var testCases = []string{
+		"abc", "hello there", "a little longer this time", "this is still within one",
+		"01234567890123456789012345678901234567890123456789012345678901234567890123456789", //longer than one block
 	}
-	msg[3] = 128
-	msg[63] = 24
-	var xx = New().Init(Sha256).Write(msg).Sum()
-	fmt.Printf("%X\n", xx)
 
-	sum := sha256.Sum256([]byte("abc"))
-	fmt.Printf("  %x\n", sum)
-
-	t.Error("Got ", xx)
-
+	for _, tt := range testCases {
+		actual := New().Init(Sha256).Write([]byte(tt)).Sum()
+		expected := sha256.Sum256([]byte(tt))
+		if actual != expected {
+			t.Errorf("Sum(%v):\n  expected %X\n    actual %X", tt, expected, actual)
+		}
+	}
 }
