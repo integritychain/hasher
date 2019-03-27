@@ -225,13 +225,22 @@ func (hasher *Hasher) Write(message []byte) *Hasher {
 		log.Fatal("You must set hash algorithm prior to submitting data")
 	}
 	var index int
-	for len(message)-index > 63 {
-		hasher.oneBlock(message[index : index+64])
-		index += 64
-		hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(64*8))
+	for len(message)-index > 0 {
+		switch curLen := len(message) - index; {
+		case curLen > 63:
+			hasher.oneBlock(message[index : index+64])
+			index += 64
+			hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(64*8))
+		case curLen < 56:
+			hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(int64(len(message[index:]))*8))
+			hasher.lastBlock(message[index:])
+			index += 56
+		case curLen > 55 && curLen < 64:
+			//asdf
+			// next step: pull '100000000000000000' marker out of lastBlock, put here, put in < 56 code
+		}
 	}
-	hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(int64(len(message[index:]))*8))
-	return hasher.lastBlock(message[index:])
+	return hasher
 }
 
 // Sum as well eh?
