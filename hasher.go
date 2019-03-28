@@ -6,6 +6,7 @@ package hasher
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 	"math/bits"
@@ -206,14 +207,18 @@ func (hasher *Hasher) lastBlock(message []byte) *Hasher {
 
 	var lastBlock [64]byte
 	len1 := copy(lastBlock[:], message)
-	lastBlock[len1] = 128
+	if len1 > 1 {
+		lastBlock[len1] = 128
+	}
 	//lastBlock[63] = (byte)(len&0xFF) * 8
 	x := hasher.lenProcessed.Bytes()
-	if len(x) > 1 {
-		lastBlock[62] = hasher.lenProcessed.Bytes()[0]
-		lastBlock[63] = hasher.lenProcessed.Bytes()[1]
-	} else {
-		lastBlock[63] = hasher.lenProcessed.Bytes()[0]
+	if len1 < 56 {
+		if len(x) > 1 {
+			lastBlock[62] = hasher.lenProcessed.Bytes()[0]
+			lastBlock[63] = hasher.lenProcessed.Bytes()[1]
+		} else {
+			lastBlock[63] = hasher.lenProcessed.Bytes()[0]
+		}
 	}
 	return hasher.oneBlock(lastBlock[:])
 
@@ -233,11 +238,16 @@ func (hasher *Hasher) Write(message []byte) *Hasher {
 			hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(64*8))
 		case curLen < 56:
 			hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(int64(len(message[index:]))*8))
+			//message[len(message)-index] = 128
 			hasher.lastBlock(message[index:])
-			index += 56
+			index += curLen
 		case curLen > 55 && curLen < 64:
-			//asdf
-			// next step: pull '100000000000000000' marker out of lastBlock, put here, put in < 56 code
+			hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(int64(curLen)*8))
+			hasher.lastBlock(message[index:])
+			hasher.lastBlock(make([]byte, 0))
+			index += curLen
+		default:
+			fmt.Println(curLen)
 		}
 	}
 	return hasher
