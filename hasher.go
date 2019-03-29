@@ -271,3 +271,40 @@ func (hasher *Hasher) Sum() interface{} {
 	}
 	return errors.New("should never reach here")
 }
+
+//// TODO is 64 the right number? 56?
+//func Write
+//index = 0
+//if fillLine !=  0
+//  if 64 - fillLine > len(msg) // msg is shorter than space available
+//    copy across len(msg) bytes
+//    fillLine += len(msg)
+//    updateLenProcessed
+//    return
+//  else                        // msg is longer than space available
+//    copy across 64 - fillLine bytes
+//    fillLine = 0
+//    update lenProcessed
+//    hash block
+//    index += 64-fillLine
+//
+//// fill line is now == 0
+//while len(msg) - index > 63
+//    hash block
+//    update lenProcessed
+//    index += 64
+//
+//copy (len(msg) - index) bytes to tempZone
+//return
+//
+//func Sum
+//    if fillLine > 55
+//      fill remainder with zeroes
+//      put one in right spot
+//      lenProcessed += fillLine
+//      hash temp block
+//      fill line = 0
+//    add one in right spot (at fillLine)
+//    add zeroes from fillLine to end
+//    put length at end
+//    hash temp block
