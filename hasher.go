@@ -5,10 +5,7 @@
 package hasher
 
 import (
-	"errors"
-	"fmt"
 	"log"
-	"math/big"
 	"math/bits"
 )
 
@@ -23,9 +20,12 @@ type HashType uint32
 
 type Hasher struct {
 	hashAlgorithm HashType
-	lenProcessed  big.Int
+	lenProcessed  uint64
+	tempBlock     [64]byte
+	fillLine      uint32
 	hash256       *[8]uint32 // TODO: Single pointer doable?
 	hash512       *[8]uint64
+	finished      bool
 }
 
 // Enumerated constant for each hash algorithm
@@ -211,50 +211,91 @@ func (hasher *Hasher) lastBlock(message []byte) *Hasher {
 		lastBlock[len1] = 128
 	}
 	//lastBlock[63] = (byte)(len&0xFF) * 8
-	x := hasher.lenProcessed.Bytes()
+	//x := hasher.lenProcessed.Bytes()
 	if len1 < 56 {
-		if len(x) > 1 {
-			lastBlock[62] = hasher.lenProcessed.Bytes()[0]
-			lastBlock[63] = hasher.lenProcessed.Bytes()[1]
+		if hasher.lenProcessed > 256 {
+			lastBlock[63] = byte(hasher.lenProcessed)
+			lastBlock[62] = byte(hasher.lenProcessed >> 8)
 		} else {
-			lastBlock[63] = hasher.lenProcessed.Bytes()[0]
+			lastBlock[63] = byte(hasher.lenProcessed)
 		}
 	}
 	return hasher.oneBlock(lastBlock[:])
 
 }
 
-// Hash does something else, eh? // FOR NOW ASSUME SHA256!!!!!!!!!!!!!!!!
 func (hasher *Hasher) Write(message []byte) *Hasher {
-	if hasher.hashAlgorithm == None {
-		log.Fatal("You must set hash algorithm prior to submitting data")
-	}
+
 	var index int
-	for len(message)-index > 0 {
-		switch curLen := len(message) - index; {
-		case curLen > 63:
-			hasher.oneBlock(message[index : index+64])
-			index += 64
-			hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(64*8))
-		case curLen < 56:
-			hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(int64(len(message[index:]))*8))
-			//message[len(message)-index] = 128
-			hasher.lastBlock(message[index:])
-			index += curLen
-		case curLen > 55 && curLen < 64:
-			hasher.lenProcessed.Add(&hasher.lenProcessed, big.NewInt(int64(curLen)*8))
-			hasher.lastBlock(message[index:])
-			hasher.lastBlock(make([]byte, 0))
-			index += curLen
-		default:
-			fmt.Println(curLen)
-		}
+
+	for (hasher.fillLine == 0) && (len(message)-index > 63) {
+		hasher.oneBlock(message[index : index+64])
+		index += 64
+		hasher.lenProcessed += 64
 	}
+
+	// Move the entire message into the temp block if there is space
+	var x = uint32(len(message) - index)
+	var tempLen = hasher.fillLine + x
+	if tempLen > 0 && tempLen < 64 {
+		for i := 0; i < len(message)-index; i++ {
+			//for i, v := range message {
+
+			hasher.tempBlock[hasher.fillLine+uint32(i)] = message[index+i]
+		}
+		hasher.fillLine += uint32(len(message) - index)
+		hasher.lenProcessed += uint64(len(message) - index)
+	}
+
 	return hasher
 }
 
-// Sum as well eh?
 func (hasher *Hasher) Sum() interface{} {
+	if hasher.fillLine >= 0 && hasher.fillLine < 56 {
+		hasher.tempBlock[hasher.fillLine] = 128
+		for index := hasher.fillLine + 1; index < 56; index++ {
+			hasher.tempBlock[index] = 0x00
+		}
+		hasher.lenProcessed *= 8
+
+		// Set trailing 128 bits
+		hasher.tempBlock[63] = byte(hasher.lenProcessed)
+		hasher.tempBlock[62] = byte(hasher.lenProcessed >> 8)
+		hasher.tempBlock[61] = byte(hasher.lenProcessed >> 16)
+		hasher.tempBlock[60] = byte(hasher.lenProcessed >> 24)
+		hasher.tempBlock[59] = byte(hasher.lenProcessed >> 32)
+		hasher.tempBlock[58] = byte(hasher.lenProcessed >> 40)
+		hasher.tempBlock[57] = byte(hasher.lenProcessed >> 48)
+		hasher.tempBlock[56] = byte(hasher.lenProcessed >> 56)
+
+		hasher.oneBlock(hasher.tempBlock[:])
+	}
+
+	if hasher.fillLine > 55 && hasher.fillLine < 64 { //|| hasher.fillLine == 0 {
+		hasher.tempBlock[hasher.fillLine] = 128
+		for index := hasher.fillLine + 1; index < 64; index++ {
+			hasher.tempBlock[index] = 0x00
+		}
+		hasher.oneBlock(hasher.tempBlock[:])
+		hasher.fillLine = 0
+		for index := hasher.fillLine; index < 60; index++ {
+			hasher.tempBlock[index] = 0x00
+		}
+		hasher.lenProcessed *= 8
+
+		// Set trailing 128 bits
+		hasher.tempBlock[63] = byte(hasher.lenProcessed)
+		hasher.tempBlock[62] = byte(hasher.lenProcessed >> 8)
+		hasher.tempBlock[61] = byte(hasher.lenProcessed >> 16)
+		hasher.tempBlock[60] = byte(hasher.lenProcessed >> 24)
+		hasher.tempBlock[59] = byte(hasher.lenProcessed >> 32)
+		hasher.tempBlock[58] = byte(hasher.lenProcessed >> 40)
+		hasher.tempBlock[57] = byte(hasher.lenProcessed >> 48)
+		hasher.tempBlock[56] = byte(hasher.lenProcessed >> 56)
+
+		hasher.oneBlock(hasher.tempBlock[:])
+	}
+
 	if hasher.hashAlgorithm == Sha224 || hasher.hashAlgorithm == Sha256 {
 		var digest [32]byte
 		for i, s := range hasher.hash256 {
@@ -264,47 +305,6 @@ func (hasher *Hasher) Sum() interface{} {
 			digest[i*4+3] = byte(s)
 		}
 		return digest
-	} else if hasher.hashAlgorithm == Sha384 || hasher.hashAlgorithm == Sha512 || hasher.hashAlgorithm == Sha512t224 || hasher.hashAlgorithm == Sha512t256 {
-		return hasher.hash512
-	} else {
-		log.Fatal("Cannot request sum prior to setting algorithm")
 	}
-	return errors.New("should never reach here")
+	return nil
 }
-
-//// TODO is 64 the right number? 56?
-//func Write
-//index = 0
-//if fillLine !=  0
-//  if 64 - fillLine > len(msg) // msg is shorter than space available
-//    copy across len(msg) bytes
-//    fillLine += len(msg)
-//    updateLenProcessed
-//    return
-//  else                        // msg is longer than space available
-//    copy across 64 - fillLine bytes
-//    fillLine = 0
-//    update lenProcessed
-//    hash block
-//    index += 64-fillLine
-//
-//// fill line is now == 0
-//while len(msg) - index > 63
-//    hash block
-//    update lenProcessed
-//    index += 64
-//
-//copy (len(msg) - index) bytes to tempZone
-//return
-//
-//func Sum
-//    if fillLine > 55
-//      fill remainder with zeroes
-//      put one in right spot
-//      lenProcessed += fillLine
-//      hash temp block
-//      fill line = 0
-//    add one in right spot (at fillLine)
-//    add zeroes from fillLine to end
-//    put length at end
-//    hash temp block

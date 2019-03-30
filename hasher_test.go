@@ -3,53 +3,61 @@ package hasher
 import (
 	"crypto/sha256"
 	"fmt"
-	"math/rand"
+	"math/rand" // Repeatable is good!
+	"runtime/debug"
 	"testing"
 )
 
+func assertEquals(t *testing.T, expected interface{}, actual interface{}) {
+	if expected != actual {
+		t.Error(fmt.Sprintf("Expected %v, got %v", expected, actual))
+		t.Log(string(debug.Stack()))
+	}
+}
+
 func TestNew(t *testing.T) {
-	var xx = New(Sha256)
-	if xx.hashAlgorithm != Sha256 {
-		t.Error("Expected SHA_@%^, got ", xx.hashAlgorithm)
-	}
+	var expected = Sha256
+	var xx = New(expected)
+	assertEquals(t, expected, xx.hashAlgorithm)
 }
 
-func TestNew2(t *testing.T) {
-	var xx = New().Init(Sha256)
-	if xx.hashAlgorithm != Sha256 {
-		t.Error("Expected SHA_@%^, got ", xx.hashAlgorithm)
-	}
+func TestNewInit(t *testing.T) {
+	var expected = Sha256
+	var xx = New().Init(expected)
+	assertEquals(t, expected, xx.hashAlgorithm)
 }
 
-func TestSha256(t *testing.T) {
+func TestSha256ShortSingles(t *testing.T) {
 
 	var testCases = []string{
-		"abc", "hello there", "a little longer this time", "this is still within one",
-		"01234567890123456789012345678901234567890123456789012345678901234567890123456789", //longer than one block
-		"0123456789012345678901234567890123456789012345678901234567890",                    //just short of one block
+		"abc", "hello there", "a little longer this time", "this is still within one block and more and ...",
 	}
 
 	for _, tt := range testCases {
 		actual := New().Init(Sha256).Write([]byte(tt)).Sum()
 		expected := sha256.Sum256([]byte(tt))
-		if actual != expected {
-			t.Errorf("Sum(%v):\n  expected %X\n    actual %X", tt, expected, actual)
-		}
+		assertEquals(t, expected, actual)
 	}
 }
 
-func TestMoreSha256(t *testing.T) {
-	for x := 0; x < 50; x++ {
-		var length = rand.Intn(1000)
-		var message [1000]byte
-		for i := range message {
-			message[i] = byte(rand.Int())
-		}
-		fmt.Println(length)
-		actual := New().Init(Sha256).Write(message[:length]).Sum()
-		expected := sha256.Sum256(message[:length])
-		if actual != expected {
-			t.Errorf("Sum(%v) %v:\n  expected %X\n    actual %X", length, message, expected, actual)
-		}
+func TestSha256ShortCombo(t *testing.T) {
+
+	var a = "abc"
+	var b = "def"
+
+	actual := New().Init(Sha256).Write([]byte(a)).Write([]byte(b)).Sum()
+	expected := sha256.Sum256([]byte(a + b))
+	assertEquals(t, expected, actual)
+
+}
+
+func TestSha256Random(t *testing.T) {
+
+	for length := 4; length < 1000; length++ {
+		message := make([]byte, length)
+		rand.Read(message)
+		actual := New().Init(Sha256).Write(message).Sum()
+		expected := sha256.Sum256(message)
+		assertEquals(t, expected, actual)
 	}
 }
