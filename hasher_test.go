@@ -1,9 +1,9 @@
 package hasher
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
-	"math/rand" // Repeatable is good!
 	"runtime/debug"
 	"testing"
 )
@@ -53,7 +53,7 @@ func TestSha256ShortCombo(t *testing.T) {
 
 func TestSha256Random(t *testing.T) {
 
-	for length := 4; length < 1000; length++ {
+	for length := 4; length < 10000; length++ {
 		message := make([]byte, length)
 		rand.Read(message)
 		actual := New().Init(Sha256).Write(message).Sum()
