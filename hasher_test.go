@@ -40,6 +40,19 @@ func TestSha256ShortSingles(t *testing.T) {
 	}
 }
 
+func TestSha224ShortSingles(t *testing.T) {
+
+	var testCases = []string{
+		"abc", "hello there", "a little longer this time", "this is still within one block and more and ...",
+	}
+
+	for _, tt := range testCases {
+		actual := New().Init(Sha224).Write([]byte(tt)).Sum()
+		expected := sha256.Sum224([]byte(tt))
+		assertEquals(t, expected, actual, "")
+	}
+}
+
 func TestSha256ShortCombo(t *testing.T) {
 
 	var a = "abc"
