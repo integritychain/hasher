@@ -137,28 +137,49 @@ func (hasher *Hasher) HashAlgorithm() HashType {
 // Write data to the hasher; Note that this can be called multiple times prior to Sum()
 func (hasher *Hasher) Write(message []byte) *Hasher {
 
-	var index int
+	// If message will fit into non-empty tempBlock and still not fill it, then add it, adjust status and finish
+	if len(message)+int(hasher.fillLine) < 64 {
+		for index := 0; index < len(message); index++ {
+			hasher.tempBlock256[hasher.fillLine+uint32(index)] = message[index]
+		}
+		hasher.lenProcessed += uint64(len(message))
+		hasher.fillLine += uint32(len(message))
+		if hasher.fillLine == 64 {
+			hasher.fillLine = 0
+			hasher.oneBlock(hasher.tempBlock256[:])
+		}
+		return hasher
+	}
 
+	// If non-empty tempBlock and message can fill it, then add it, hash it and call back with message segment
+	if hasher.fillLine > 0 && len(message)+int(hasher.fillLine) > 63 {
+		for index := 0; index < 64-int(hasher.fillLine); index++ {
+			hasher.tempBlock256[int(hasher.fillLine)+index] = message[index]
+		}
+		hasher.lenProcessed += 64 - uint64(hasher.fillLine)
+		hasher.oneBlock(hasher.tempBlock256[:])
+		var xxx = 64 - int(hasher.fillLine) // hasher.fillLine
+		hasher.fillLine = 0
+		hasher.Write(message[xxx:])
+		return hasher
+	}
+
+	// If empty tempBlock and message > block size, then hash the blocks
+	var index int
 	for (hasher.fillLine == 0) && (len(message)-index > 63) {
 		hasher.oneBlock(message[index : index+64])
 		index += 64
 		hasher.lenProcessed += 64
 	}
 
-	// Move the entire message into the temp block if there is space
-	var x = uint32(len(message) - index)
-	var tempLen = hasher.fillLine + x
-	if tempLen > 0 && tempLen < 64 {
-		for i := 0; i < len(message)-index; i++ {
-			//for i, v := range message {
-
-			hasher.tempBlock256[hasher.fillLine+uint32(i)] = message[index+i]
-		}
-		hasher.fillLine += uint32(len(message) - index)
-		hasher.lenProcessed += uint64(len(message) - index)
+	// If we still have a little bit of message remaining, call back
+	if len(message)-index > 0 {
+		hasher.Write(message[index:])
+		return hasher
 	}
 
 	return hasher
+
 }
 
 // Return the final hash calculation. Locks hash and clears temp data.
