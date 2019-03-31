@@ -11,23 +11,23 @@ import (
 )
 
 // TODO
-// 2. add finished logic
-// 3. clear tempBlock256 when finished
-// 4. add max length constraints
+// 1. Fix lenProcessed type and max length constraints
+// 2. Add SHA-224 support
+// 3. Add hasher interface??
 
 // Unique type for specifying the hash algorithms
 type HashType uint32
 
 // Hasher structure contains small number of private fields
 type Hasher struct {
+	fillLine      int
+	finished      bool
+	hash256       *[8]uint32
+	hash512       *[8]uint64
 	hashAlgorithm HashType
 	lenProcessed  uint64
 	tempBlock256  *[64]byte
 	tempBlock512  *[128]byte
-	fillLine      uint32
-	hash256       *[8]uint32 // TODO: Single pointer doable?
-	hash512       *[8]uint64
-	finished      bool
 }
 
 // Enumerated constant for each hash algorithm
@@ -73,7 +73,7 @@ var sha512Constants = [80]uint64{
 	0x431d67c49c100d4c, 0x4cc5d4becb3e42b6, 0x597f299cfc657e2a, 0x5fcb6fab3ad6faec, 0x6c44198c4a475817,
 }
 
-// Construct a fresh instance where the HashType algorithm can be specified here or deferred to Init.
+// Construct a fresh instance. The HashType algorithm can be specified here or deferred to Init().
 func New(hashAlgorithm ...HashType) *Hasher {
 	var this = new(Hasher)
 	if len(hashAlgorithm) == 1 {
@@ -136,14 +136,20 @@ func (hasher *Hasher) HashAlgorithm() HashType {
 
 // Write data to the hasher; Note that this can be called multiple times prior to Sum()
 func (hasher *Hasher) Write(message []byte) *Hasher {
+	if hasher.hashAlgorithm == None {
+		log.Fatal("Initialize hash algorithm prior to writing")
+	}
+	if hasher.finished {
+		log.Fatal("Cannot call Write() after Sum() because hasher is finished")
+	}
 
 	// If message will fit into non-empty tempBlock and still not fill it, then add it, adjust status and finish
 	if len(message)+int(hasher.fillLine) < 64 {
 		for index := 0; index < len(message); index++ {
-			hasher.tempBlock256[hasher.fillLine+uint32(index)] = message[index]
+			hasher.tempBlock256[hasher.fillLine+index] = message[index]
 		}
 		hasher.lenProcessed += uint64(len(message))
-		hasher.fillLine += uint32(len(message))
+		hasher.fillLine += len(message)
 		if hasher.fillLine == 64 {
 			hasher.fillLine = 0
 			hasher.oneBlock(hasher.tempBlock256[:])
@@ -179,11 +185,26 @@ func (hasher *Hasher) Write(message []byte) *Hasher {
 	}
 
 	return hasher
-
 }
 
 // Return the final hash calculation. Locks hash and clears temp data.
 func (hasher *Hasher) Sum() interface{} {
+	if !hasher.finished {
+		hasher.finalize()
+	}
+	hasher.finished = true
+
+	if hasher.hashAlgorithm == Sha224 || hasher.hashAlgorithm == Sha256 {
+		var digest [32]byte
+		for i, s := range hasher.hash256 {
+			binary.BigEndian.PutUint32(digest[i*4:i*4+4], s)
+		}
+		return digest
+	}
+	return nil
+}
+
+func (hasher *Hasher) finalize() {
 	if hasher.fillLine < 56 {
 		hasher.lastBlock()
 	}
@@ -198,14 +219,10 @@ func (hasher *Hasher) Sum() interface{} {
 		hasher.oneBlock(hasher.tempBlock256[:])
 	}
 
-	if hasher.hashAlgorithm == Sha224 || hasher.hashAlgorithm == Sha256 {
-		var digest [32]byte
-		for i, s := range hasher.hash256 {
-			binary.BigEndian.PutUint32(digest[i*4:i*4+4], s)
-		}
-		return digest
-	}
-	return nil
+	// Clear working data
+	hasher.fillLine = 0
+	hasher.fillBlock()
+
 }
 
 // Hash a single block; Could be given a properly sized message segment or a tempBlock
@@ -213,7 +230,7 @@ func (hasher *Hasher) oneBlock(message []byte) *Hasher {
 	if len(message) != 64 {
 		log.Fatal("oneBlock got an odd sized block.")
 	}
-	// Calculate message schedule of 64 W's
+	// Message schedule
 	var w [64]uint32
 
 	// First 16 are straightforward
@@ -261,9 +278,8 @@ func (hasher *Hasher) oneBlock(message []byte) *Hasher {
 
 }
 
-// Tag the end of data and fill remainder with zeros; only works on tempBlocks
+// Mark the end of data and fill remainder with zeros; only for tempBlocks
 func (hasher *Hasher) fillBlock() {
-
 	if hasher.hashAlgorithm == Sha224 || hasher.hashAlgorithm == Sha256 {
 		hasher.tempBlock256[hasher.fillLine] = 128
 		for index := hasher.fillLine + 1; index < 64; index++ {
@@ -272,13 +288,13 @@ func (hasher *Hasher) fillBlock() {
 	}
 }
 
-// Insert message length tag at the end; only words on tempBlocks
+// Insert message length tag at the end; only for tempBlocks
 func (hasher *Hasher) tagLength() {
 	hasher.lenProcessed *= 8
 	binary.BigEndian.PutUint64(hasher.tempBlock256[56:64], hasher.lenProcessed)
 }
 
-// Hash the very last block; only works on tempBlocks
+// Hash the very last block; only for tempBlocks
 func (hasher *Hasher) lastBlock() {
 	hasher.fillBlock()
 	hasher.tagLength()
