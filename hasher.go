@@ -15,17 +15,15 @@ import (
 )
 
 // TODO
-// 1. Is top level interface done correctly? Implement Sha2 interface on tests?
-// 2. Test maxLength logic
-// 3. Implement Marshall, Unmarshall
-// 4. Clean up code further
-// 5. Polish documentation
+// 1. Test maxLength logic
+// 2. Implement Marshall, Unmarshall
+// 3. Clean up code further
 
 // Sha2 interface
 type Sha2 interface {
-	New() Hasher
-	Init() Hasher
-	Write() Hasher
+	HashAlgorithm() HashAlgorithm
+	Init(hashAlgorithm HashAlgorithm) *Hasher
+	Write(message []byte) *Hasher
 	Sum() interface{}
 }
 
@@ -93,13 +91,13 @@ func (hasher *Hasher) Init(hashAlgorithm HashAlgorithm) *Hasher {
 			0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4,
 		}
 		hasher.tempBlock256 = &[64]byte{0}
-		hasher.m256 = true
+		hasher.m256 = true // Simplifies life later
 	case Sha256:
 		hasher.hash256 = &[8]uint32{ // The specific and unique initial hash for SHA-256 H[0:7]
 			0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 		}
 		hasher.tempBlock256 = &[64]byte{0}
-		hasher.m256 = true
+		hasher.m256 = true // Simplifies life later
 	case Sha384:
 		hasher.hash512 = &[8]uint64{ // The specific and unique initial hash for SHA-384 H[0:7]
 			0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17, 0x152fecd8f70e5939,
@@ -180,35 +178,35 @@ func (hasher *Hasher) Write(message []byte) *Hasher {
 		log.Fatal("Cannot call Write() after Sum() because hasher is finished")
 	}
 
-	// 256: If message will fit into non-empty tempBlock and still not fill it, then add it, adjust status and finish
+	// If 256 && message will fit into non-empty tempBlock and still not fill it, then append it, adjust status and finish
 	if hasher.m256 && len(message)+hasher.fillLine < bYTESINBLOCK256 {
 		for index := 0; index < len(message); index++ {
 			hasher.tempBlock256[hasher.fillLine+index] = message[index]
 		}
 		hasher.lenProcessed.Add(hasher.lenProcessed, big.NewInt(int64(len(message))))
 		hasher.fillLine += len(message)
-		if hasher.fillLine == bYTESINBLOCK256 {
-			hasher.fillLine = 0
-			hasher.oneBlock256(hasher.tempBlock256[:])
-		}
+		//if hasher.fillLine == bYTESINBLOCK256 {
+		//	hasher.fillLine = 0
+		//	hasher.oneBlock256(hasher.tempBlock256[:])
+		//}
 		return hasher
 	}
 
-	// 512
+	// If 512 && message will fit into non-empty tempBlock and still not fill it, then append it, adjust status and finish
 	if !hasher.m256 && len(message)+hasher.fillLine < bYTESINBLOCK512 {
 		for index := 0; index < len(message); index++ {
 			hasher.tempBlock512[hasher.fillLine+index] = message[index]
 		}
 		hasher.lenProcessed.Add(hasher.lenProcessed, big.NewInt(int64(len(message))))
 		hasher.fillLine += len(message)
-		if hasher.fillLine == bYTESINBLOCK512 {
-			hasher.fillLine = 0
-			hasher.oneBlock512(hasher.tempBlock512[:])
-		}
+		//if hasher.fillLine == bYTESINBLOCK512 {
+		//	hasher.fillLine = 0
+		//	hasher.oneBlock512(hasher.tempBlock512[:])
+		//}
 		return hasher
 	}
 
-	// 256 If non-empty tempBlock and message can fill it, then add it, hash it and call back with message segment
+	// If 256 && non-empty tempBlock and message can fill it, then append it, hash it and call back with message segment
 	if hasher.m256 && hasher.fillLine > 0 && len(message)+hasher.fillLine > (bYTESINBLOCK256-1) {
 		for index := 0; index < bYTESINBLOCK256-hasher.fillLine; index++ {
 			hasher.tempBlock256[hasher.fillLine+index] = message[index]
@@ -217,11 +215,11 @@ func (hasher *Hasher) Write(message []byte) *Hasher {
 		hasher.oneBlock256(hasher.tempBlock256[:])
 		var tempFill = bYTESINBLOCK256 - hasher.fillLine
 		hasher.fillLine = 0
-		hasher.Write(message[tempFill:])
+		hasher.Write(message[tempFill:]) // One-off recursion
 		return hasher
 	}
 
-	// 512
+	// If 512 && non-empty tempBlock and message can fill it, then append it, hash it and call back with message segment
 	if !hasher.m256 && hasher.fillLine > 0 && len(message)+hasher.fillLine > (bYTESINBLOCK512-1) {
 		for index := 0; index < bYTESINBLOCK512-hasher.fillLine; index++ {
 			hasher.tempBlock512[hasher.fillLine+index] = message[index]
@@ -230,11 +228,11 @@ func (hasher *Hasher) Write(message []byte) *Hasher {
 		hasher.oneBlock512(hasher.tempBlock512[:])
 		var tempFill = bYTESINBLOCK512 - hasher.fillLine
 		hasher.fillLine = 0
-		hasher.Write(message[tempFill:])
+		hasher.Write(message[tempFill:]) // One-off recursion
 		return hasher
 	}
 
-	// 256: If empty tempBlock and message > block size, then hash the blocks
+	// If 256 && empty tempBlock and message > block size, then hash the blocks
 	var index int
 	if hasher.m256 {
 		for (hasher.fillLine == 0) && (len(message)-index > (bYTESINBLOCK256 - 1)) {
@@ -251,7 +249,7 @@ func (hasher *Hasher) Write(message []byte) *Hasher {
 	}
 	// If we still have a little bit of message remaining, call back
 	if len(message)-index > 0 {
-		hasher.Write(message[index:])
+		hasher.Write(message[index:]) // One-off recursion
 		return hasher
 	}
 
@@ -266,7 +264,7 @@ func (hasher *Hasher) Sum() interface{} {
 	hasher.finished = true
 
 	if hasher.lenProcessed.Cmp(hasher.maxLengthBytes) > 0 {
-		log.Fatal("Length is too long")
+		log.Fatal("Length is too long") // Done in Sum() for performance
 	}
 
 	switch hasher.hashAlgorithm {
@@ -299,8 +297,7 @@ func (hasher *Hasher) Sum() interface{} {
 		for index := 0; index < 24; index += 8 {
 			binary.BigEndian.PutUint64(digest[index:index+8], hasher.hash512[index/8])
 		}
-		binary.BigEndian.PutUint32(digest[24:28], uint32(hasher.hash512[3]>>32))
-
+		binary.BigEndian.PutUint32(digest[24:28], uint32(hasher.hash512[3]>>32)) // Pesky left-over
 		return digest
 	case Sha512t256:
 		var digest [32]byte
@@ -316,10 +313,12 @@ func (hasher *Hasher) Sum() interface{} {
 
 func (hasher *Hasher) finalize() {
 
+	// Finalize by hashing last block if padding will fit
 	if (hasher.m256 && hasher.fillLine < mAXBYTESINBLOCK256) || (!hasher.m256 && hasher.fillLine < mAXBYTESINBLOCK512) {
 		hasher.lastBlock()
 	}
 
+	// Finalize by hashing two last blocks if padding will NOT fit
 	if (hasher.m256 && hasher.fillLine >= mAXBYTESINBLOCK256 && hasher.fillLine < bYTESINBLOCK256) ||
 		(!hasher.m256 && hasher.fillLine >= mAXBYTESINBLOCK512 && hasher.fillLine < bYTESINBLOCK512) {
 		hasher.fillBlock()
@@ -365,10 +364,8 @@ func (hasher *Hasher) oneBlock512(message []byte) *Hasher {
 	// Remaining 64 are more complicated
 	for i := 16; i < 80; i++ {
 		v1 := w[i-2]
-		//t1 := bits.RotateLeft32(v1, -17) ^ bits.RotateLeft32(v1, -19) ^ (v1 >> 10) // (4.7 -> 4.13)
 		t1 := bits.RotateLeft64(v1, -19) ^ bits.RotateLeft64(v1, -61) ^ (v1 >> 6) // (4.7 -> 4.13)
 		v2 := w[i-15]
-		//t2 := bits.RotateLeft32(v2, -7) ^ bits.RotateLeft32(v2, -18) ^ (v2 >> 3) // (4.6 -> 4.12)
 		t2 := bits.RotateLeft64(v2, -1) ^ bits.RotateLeft64(v2, -8) ^ (v2 >> 7) // (4.6 -> 4.12)
 		w[i] = t1 + w[i-7] + t2 + w[i-16]
 	}
@@ -496,5 +493,4 @@ func (hasher *Hasher) lastBlock() {
 	} else {
 		hasher.oneBlock512(hasher.tempBlock512[:])
 	}
-
 }
