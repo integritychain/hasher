@@ -307,13 +307,13 @@ FUZZ EVERYTHING! This also highlights the coolness of streaming writes.
 
 func TestFuzzEverything(t *testing.T) {
 
-	for iterations := 0; iterations < 100000; iterations++ {
+	for iterations := 0; iterations < 10000; iterations++ {
 
 		// 5 random message lengths
 		var length1 = rand.Intn(500)
-		var length2 = rand.Intn(500)
+		var length2 = rand.Intn(100)
 		var length3 = rand.Intn(5000)
-		var length4 = rand.Intn(500)
+		var length4 = rand.Intn(100)
 		var length5 = rand.Intn(500)
 
 		// Each message will have random content
@@ -372,10 +372,24 @@ func TestFuzzEverything(t *testing.T) {
 Benchmark 256/512 hash algorithms with a random 1MB message. go test -bench=.
 */
 
+// 1. Before optimization
+//goos: linux
+//goarch: amd64
+//pkg: hasher
+//BenchmarkHasherSha256-8   	   50000	     39369 ns/op
+//BenchmarkGolangSha256-8   	  100000	     15993 ns/op
+//BenchmarkHasherSha512-8   	   50000	     25378 ns/op
+//BenchmarkGolangSha512-8   	  200000	     10943 ns/op
+//PASS
+//ok  	hasher	9.915s
+
+// 2. Changing lenProcesses from bigInt to uint63 helps just under 3%
+// 3. Changing for loop to copy helped very marginally at best
+
 var bMsg = []byte{0}
 
 func init() {
-	var bLen = 1000000
+	var bLen = 8192
 	bMsg = make([]byte, bLen)
 	rand.Read(bMsg)
 
