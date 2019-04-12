@@ -385,6 +385,8 @@ Benchmark 256/512 hasher256 algorithms with a random 1MB message. go test -bench
 //BenchmarkHasherSha256-8   	   50000	     31748 ns/op
 //BenchmarkGolangSha256-8   	  100000	     15987 ns/op
 
+// 5. Now unrull SHA512!
+
 var bMsg = []byte{0}
 
 func init() {

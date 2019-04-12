@@ -22,6 +22,11 @@ type sha256 struct {
 	hasher256
 }
 
+const (
+	bYTESINBLOCK256    int = 64
+	mAXBYTESINBLOCK256 int = 56
+)
+
 var sha256Constants = [64]uint32{
 	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
 	0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -33,12 +38,8 @@ var sha256Constants = [64]uint32{
 	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 }
 
-var bBYTESINBLOCK256 = 64 //big.NewInt(64)
-var bYTESINBLOCK256 = 64
-var mAXBYTESINBLOCK256 = 56
-
 func (hasher *sha224) Init(hashAlgorithm HashAlgorithm) Hasher {
-	if hasher.lenProcessed > 0 { //.Cmp(big.NewInt(0)) > 0 {
+	if hasher.lenProcessed > 0 {
 		log.Fatal("Cannot switch HashAlgorithms mid-calculation")
 	}
 	hasher.lenProcessed = 0
@@ -49,11 +50,32 @@ func (hasher *sha224) Init(hashAlgorithm HashAlgorithm) Hasher {
 	return hasher
 }
 
+func (hasher *sha256) Init(hashAlgorithm HashAlgorithm) Hasher {
+	if hasher.lenProcessed > 0 {
+		log.Fatal("Cannot switch HashAlgorithms mid-calculation")
+	}
+	hasher.lenProcessed = 0
+	hasher.tempBlock256 = &[64]byte{0}
+	hasher.hash256 = &[8]uint32{ // The specific and unique initial hasher256 for SHA-256 H[0:7]
+		0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+	}
+	return hasher
+}
+
 func (hasher *sha224) HashAlgorithm() HashAlgorithm {
 	return Sha224
 }
 
+func (hasher *sha256) HashAlgorithm() HashAlgorithm {
+	return Sha256
+}
+
 func (hasher *sha224) Write(message []byte) Hasher {
+	write256(&hasher.hasher256, message)
+	return hasher
+}
+
+func (hasher *sha256) Write(message []byte) Hasher {
 	write256(&hasher.hasher256, message)
 	return hasher
 }
@@ -68,27 +90,6 @@ func (hasher *sha224) Sum() interface{} {
 		binary.BigEndian.PutUint32(digest[index:index+4], hasher.hash256[index/4])
 	}
 	return digest
-}
-
-func (hasher *sha256) Init(hashAlgorithm HashAlgorithm) Hasher {
-	if hasher.lenProcessed > 0 { //.Cmp(big.NewInt(0)) > 0 {
-		log.Fatal("Cannot switch HashAlgorithms mid-calculation")
-	}
-	hasher.lenProcessed = 0
-	hasher.tempBlock256 = &[64]byte{0}
-	hasher.hash256 = &[8]uint32{ // The specific and unique initial hasher256 for SHA-256 H[0:7]
-		0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
-	}
-	return hasher
-}
-
-func (hasher *sha256) HashAlgorithm() HashAlgorithm {
-	return Sha256
-}
-
-func (hasher *sha256) Write(message []byte) Hasher {
-	write256(&hasher.hasher256, message)
-	return hasher
 }
 
 func (hasher *sha256) Sum() interface{} {
@@ -133,7 +134,7 @@ func write256(hasher *hasher256, message []byte) {
 	for (hasher.fillLine == 0) && (len(message)-index > (bYTESINBLOCK256 - 1)) {
 		oneBlock256(hasher, message[index:index+bYTESINBLOCK256])
 		index += bYTESINBLOCK256
-		hasher.lenProcessed += uint64(bBYTESINBLOCK256)
+		hasher.lenProcessed += uint64(bYTESINBLOCK256)
 	}
 
 	// If we still have a little bit of message remaining, call back
@@ -187,12 +188,13 @@ func lastBlock256(hasher *hasher256) {
 	oneBlock256(hasher, hasher.tempBlock256[:])
 }
 
+// Message schedule
+var w [64]uint32
+
 func oneBlock256(hasher *hasher256, message []byte) {
 	if len(message) != bYTESINBLOCK256 {
 		log.Fatal("eightBlocks256 got an odd sized block.")
 	}
-	// Message schedule
-	var w [64]uint32
 
 	// First 16 w are straightforward
 	for i := 0; i < 16; i++ {
@@ -210,10 +212,9 @@ func oneBlock256(hasher *hasher256, message []byte) {
 	}
 
 	// Initialize working variables
-	var a, b, c, d, e, f, g, h = hasher.hash256[0], hasher.hash256[1], hasher.hash256[2], hasher.hash256[3],
+	var a, b, c, d, e, f, g, h, e1, e2, e3, e4, a1, a2, a3, a4 uint32
+	a, b, c, d, e, f, g, h = hasher.hash256[0], hasher.hash256[1], hasher.hash256[2], hasher.hash256[3],
 		hasher.hash256[4], hasher.hash256[5], hasher.hash256[6], hasher.hash256[7]
-
-	var e1, e2, e3, e4, e5, e6, e7, a1, a2, a3, a4, a5, a6, a7 uint32
 
 	for i := 0; i < 64; i += 8 {
 
@@ -249,34 +250,28 @@ func oneBlock256(hasher *hasher256, message []byte) {
 			((e4 & e3) ^ (^e4 & e2)) + sha256Constants[i+4] + w[i+4]
 		t2 = (bits.RotateLeft32(a4, -2) ^ bits.RotateLeft32(a4, -13) ^ bits.RotateLeft32(a4, -22)) +
 			((a4 & a3) ^ (a4 & a2) ^ (a3 & a2))
-		e5 = a1 + t1
-		a5 = t1 + t2
+		h = a1 + t1
+		d = t1 + t2
 
-		t1 = e2 + (bits.RotateLeft32(e5, -6) ^ bits.RotateLeft32(e5, -11) ^ bits.RotateLeft32(e5, -25)) +
-			((e5 & e4) ^ (^e5 & e3)) + sha256Constants[i+5] + w[i+5]
-		t2 = (bits.RotateLeft32(a5, -2) ^ bits.RotateLeft32(a5, -13) ^ bits.RotateLeft32(a5, -22)) +
-			((a5 & a4) ^ (a5 & a3) ^ (a4 & a3))
-		e6 = a2 + t1
-		a6 = t1 + t2
+		t1 = e2 + (bits.RotateLeft32(h, -6) ^ bits.RotateLeft32(h, -11) ^ bits.RotateLeft32(h, -25)) +
+			((h & e4) ^ (^h & e3)) + sha256Constants[i+5] + w[i+5]
+		t2 = (bits.RotateLeft32(d, -2) ^ bits.RotateLeft32(d, -13) ^ bits.RotateLeft32(d, -22)) +
+			((d & a4) ^ (d & a3) ^ (a4 & a3))
+		g = a2 + t1
+		c = t1 + t2
 
-		t1 = e3 + (bits.RotateLeft32(e6, -6) ^ bits.RotateLeft32(e6, -11) ^ bits.RotateLeft32(e6, -25)) +
-			((e6 & e5) ^ (^e6 & e4)) + sha256Constants[i+6] + w[i+6]
-		t2 = (bits.RotateLeft32(a6, -2) ^ bits.RotateLeft32(a6, -13) ^ bits.RotateLeft32(a6, -22)) +
-			((a6 & a5) ^ (a6 & a4) ^ (a5 & a4))
-		e7 = a3 + t1
-		a7 = t1 + t2
+		t1 = e3 + (bits.RotateLeft32(g, -6) ^ bits.RotateLeft32(g, -11) ^ bits.RotateLeft32(g, -25)) +
+			((g & h) ^ (^g & e4)) + sha256Constants[i+6] + w[i+6]
+		t2 = (bits.RotateLeft32(c, -2) ^ bits.RotateLeft32(c, -13) ^ bits.RotateLeft32(c, -22)) +
+			((c & d) ^ (c & a4) ^ (d & a4))
+		f = a3 + t1
+		b = t1 + t2
 
-		t1 = e4 + (bits.RotateLeft32(e7, -6) ^ bits.RotateLeft32(e7, -11) ^ bits.RotateLeft32(e7, -25)) +
-			((e7 & e6) ^ (^e7 & e5)) + sha256Constants[i+7] + w[i+7]
-		t2 = (bits.RotateLeft32(a7, -2) ^ bits.RotateLeft32(a7, -13) ^ bits.RotateLeft32(a7, -22)) +
-			((a7 & a6) ^ (a7 & a5) ^ (a6 & a5))
-		h = e5
-		g = e6
-		f = e7
+		t1 = e4 + (bits.RotateLeft32(f, -6) ^ bits.RotateLeft32(f, -11) ^ bits.RotateLeft32(f, -25)) +
+			((f & g) ^ (^f & h)) + sha256Constants[i+7] + w[i+7]
+		t2 = (bits.RotateLeft32(b, -2) ^ bits.RotateLeft32(b, -13) ^ bits.RotateLeft32(b, -22)) +
+			((b & c) ^ (b & d) ^ (c & d))
 		e = a4 + t1
-		d = a5
-		c = a6
-		b = a7
 		a = t1 + t2
 	}
 
