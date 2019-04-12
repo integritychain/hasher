@@ -1,9 +1,10 @@
-package hasher
+package hasher_test
 
 import (
 	cryptoSha256 "crypto/sha256"
 	cryptoSha512 "crypto/sha512"
 	"fmt"
+	. "hasher"
 	"math/rand" // Repeatable is good
 	"runtime/debug"
 	"testing"
