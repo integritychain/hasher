@@ -189,26 +189,26 @@ func lastBlock256(hasher *hasher256) {
 }
 
 // Message schedule
-var w [64]uint32
+var w256 [64]uint32
 
 func oneBlock256(hasher *hasher256, message []byte) {
 	if len(message) != bYTESINBLOCK256 {
 		log.Fatal("eightBlocks256 got an odd sized block.")
 	}
 
-	// First 16 w are straightforward
+	// First 16 w256 are straightforward
 	for i := 0; i < 16; i++ {
 		j := i * 4
-		w[i] = binary.BigEndian.Uint32(message[j : j+4])
+		w256[i] = binary.BigEndian.Uint32(message[j : j+4])
 	}
 
-	// Remaining 48 w are more complicated
+	// Remaining 48 w256 are more complicated
 	for i := 16; i < 64; i++ {
-		v1 := w[i-2]
+		v1 := w256[i-2]
 		t1 := bits.RotateLeft32(v1, -17) ^ bits.RotateLeft32(v1, -19) ^ (v1 >> 10)
-		v2 := w[i-15]
+		v2 := w256[i-15]
 		t2 := bits.RotateLeft32(v2, -7) ^ bits.RotateLeft32(v2, -18) ^ (v2 >> 3)
-		w[i] = t1 + w[i-7] + t2 + w[i-16]
+		w256[i] = t1 + w256[i-7] + t2 + w256[i-16]
 	}
 
 	// Initialize working variables
@@ -219,56 +219,56 @@ func oneBlock256(hasher *hasher256, message []byte) {
 	for i := 0; i < 64; i += 8 {
 
 		t1 := h + (bits.RotateLeft32(e, -6) ^ bits.RotateLeft32(e, -11) ^ bits.RotateLeft32(e, -25)) +
-			((e & f) ^ (^e & g)) + sha256Constants[i] + w[i]
+			((e & f) ^ (^e & g)) + sha256Constants[i] + w256[i]
 		t2 := (bits.RotateLeft32(a, -2) ^ bits.RotateLeft32(a, -13) ^ bits.RotateLeft32(a, -22)) +
 			((a & b) ^ (a & c) ^ (b & c))
 		e1 = d + t1
 		a1 = t1 + t2
 
 		t1 = g + (bits.RotateLeft32(e1, -6) ^ bits.RotateLeft32(e1, -11) ^ bits.RotateLeft32(e1, -25)) +
-			((e1 & e) ^ (^e1 & f)) + sha256Constants[i+1] + w[i+1]
+			((e1 & e) ^ (^e1 & f)) + sha256Constants[i+1] + w256[i+1]
 		t2 = (bits.RotateLeft32(a1, -2) ^ bits.RotateLeft32(a1, -13) ^ bits.RotateLeft32(a1, -22)) +
 			((a1 & a) ^ (a1 & b) ^ (a & b))
 		e2 = c + t1
 		a2 = t1 + t2
 
 		t1 = f + (bits.RotateLeft32(e2, -6) ^ bits.RotateLeft32(e2, -11) ^ bits.RotateLeft32(e2, -25)) +
-			((e2 & e1) ^ (^e2 & e)) + sha256Constants[i+2] + w[i+2]
+			((e2 & e1) ^ (^e2 & e)) + sha256Constants[i+2] + w256[i+2]
 		t2 = (bits.RotateLeft32(a2, -2) ^ bits.RotateLeft32(a2, -13) ^ bits.RotateLeft32(a2, -22)) +
 			((a2 & a1) ^ (a2 & a) ^ (a1 & a))
 		e3 = b + t1
 		a3 = t1 + t2
 
 		t1 = e + (bits.RotateLeft32(e3, -6) ^ bits.RotateLeft32(e3, -11) ^ bits.RotateLeft32(e3, -25)) +
-			((e3 & e2) ^ (^e3 & e1)) + sha256Constants[i+3] + w[i+3]
+			((e3 & e2) ^ (^e3 & e1)) + sha256Constants[i+3] + w256[i+3]
 		t2 = (bits.RotateLeft32(a3, -2) ^ bits.RotateLeft32(a3, -13) ^ bits.RotateLeft32(a3, -22)) +
 			((a3 & a2) ^ (a3 & a1) ^ (a2 & a1))
 		e4 = a + t1
 		a4 = t1 + t2
 
 		t1 = e1 + (bits.RotateLeft32(e4, -6) ^ bits.RotateLeft32(e4, -11) ^ bits.RotateLeft32(e4, -25)) +
-			((e4 & e3) ^ (^e4 & e2)) + sha256Constants[i+4] + w[i+4]
+			((e4 & e3) ^ (^e4 & e2)) + sha256Constants[i+4] + w256[i+4]
 		t2 = (bits.RotateLeft32(a4, -2) ^ bits.RotateLeft32(a4, -13) ^ bits.RotateLeft32(a4, -22)) +
 			((a4 & a3) ^ (a4 & a2) ^ (a3 & a2))
 		h = a1 + t1
 		d = t1 + t2
 
 		t1 = e2 + (bits.RotateLeft32(h, -6) ^ bits.RotateLeft32(h, -11) ^ bits.RotateLeft32(h, -25)) +
-			((h & e4) ^ (^h & e3)) + sha256Constants[i+5] + w[i+5]
+			((h & e4) ^ (^h & e3)) + sha256Constants[i+5] + w256[i+5]
 		t2 = (bits.RotateLeft32(d, -2) ^ bits.RotateLeft32(d, -13) ^ bits.RotateLeft32(d, -22)) +
 			((d & a4) ^ (d & a3) ^ (a4 & a3))
 		g = a2 + t1
 		c = t1 + t2
 
 		t1 = e3 + (bits.RotateLeft32(g, -6) ^ bits.RotateLeft32(g, -11) ^ bits.RotateLeft32(g, -25)) +
-			((g & h) ^ (^g & e4)) + sha256Constants[i+6] + w[i+6]
+			((g & h) ^ (^g & e4)) + sha256Constants[i+6] + w256[i+6]
 		t2 = (bits.RotateLeft32(c, -2) ^ bits.RotateLeft32(c, -13) ^ bits.RotateLeft32(c, -22)) +
 			((c & d) ^ (c & a4) ^ (d & a4))
 		f = a3 + t1
 		b = t1 + t2
 
 		t1 = e4 + (bits.RotateLeft32(f, -6) ^ bits.RotateLeft32(f, -11) ^ bits.RotateLeft32(f, -25)) +
-			((f & g) ^ (^f & h)) + sha256Constants[i+7] + w[i+7]
+			((f & g) ^ (^f & h)) + sha256Constants[i+7] + w256[i+7]
 		t2 = (bits.RotateLeft32(b, -2) ^ bits.RotateLeft32(b, -13) ^ bits.RotateLeft32(b, -22)) +
 			((b & c) ^ (b & d) ^ (c & d))
 		e = a4 + t1

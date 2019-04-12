@@ -12,9 +12,13 @@ import (
 )
 
 // TODO
-// 1. Fix then test maxLength logic
-// 2. Implement Marshall, Unmarshall
-// 3. Clean up code further
+// 1. Find out if new can work; otherwise move on!!
+// 2. Fix then test maxLength logic
+// 3. Implement Marshall, Unmarshall; What is this json stuff in a struct, codec???
+// 4. Implement Thomas' interim calculate function; can we simply copy the hasher and Sum the copy?
+// 5. Clean up code further; everything in sha256 should perfectly match sha512
+// 6. Fresh look at test strategy; build each small bit, then fuzz everything; also documentation
+// 7. Review documentation
 
 // Hasher interface
 type Hasher interface {

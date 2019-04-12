@@ -267,8 +267,6 @@ func fillBlock512(hasher *hasher512) {
 func tagLength512(hasher *hasher512) {
 	hasher.lenProcessed *= 8
 	binary.BigEndian.PutUint64(hasher.tempBlock512[mAXBYTESINBLOCK512+8:bYTESINBLOCK512], hasher.lenProcessed)
-	hasher.lenProcessed = hasher.lenProcessed >> 64
-	binary.BigEndian.PutUint64(hasher.tempBlock512[mAXBYTESINBLOCK512:mAXBYTESINBLOCK512+8], hasher.lenProcessed)
 }
 
 // Hash the very last block; only for tempBlocks
@@ -278,44 +276,89 @@ func lastBlock512(hasher *hasher512) {
 	oneBlock512(hasher, hasher.tempBlock512[:])
 }
 
+// Message schedule
+var w512 [80]uint64
+
 func oneBlock512(hasher *hasher512, message []byte) {
 	if len(message) != bYTESINBLOCK512 {
 		log.Fatal("oneBlock512 got an odd sized block.")
 	}
-	// Message schedule
-	var w [80]uint64
 
 	// First 16 are straightforward
 	for i := 0; i < 16; i++ {
 		j := i * 8
-		w[i] = binary.BigEndian.Uint64(message[j : j+8])
+		w512[i] = binary.BigEndian.Uint64(message[j : j+8])
 	}
 
 	// Remaining 64 are more complicated
 	for i := 16; i < 80; i++ {
-		v1 := w[i-2]
+		v1 := w512[i-2]
 		t1 := bits.RotateLeft64(v1, -19) ^ bits.RotateLeft64(v1, -61) ^ (v1 >> 6)
-		v2 := w[i-15]
+		v2 := w512[i-15]
 		t2 := bits.RotateLeft64(v2, -1) ^ bits.RotateLeft64(v2, -8) ^ (v2 >> 7)
-		w[i] = t1 + w[i-7] + t2 + w[i-16]
+		w512[i] = t1 + w512[i-7] + t2 + w512[i-16]
 	}
 
 	// Initialize working variables
-	var a, b, c, d, e, f, g, h = hasher.hash512[0], hasher.hash512[1], hasher.hash512[2], hasher.hash512[3],
+	var a, b, c, d, e, f, g, h, e1, e2, e3, e4, a1, a2, a3, a4 uint64
+	a, b, c, d, e, f, g, h = hasher.hash512[0], hasher.hash512[1], hasher.hash512[2], hasher.hash512[3],
 		hasher.hash512[4], hasher.hash512[5], hasher.hash512[6], hasher.hash512[7]
 
-	for i := 0; i < 80; i++ {
+	for i := 0; i < 80; i = i + 8 {
 		t1 := h + (bits.RotateLeft64(e, -14) ^ bits.RotateLeft64(e, -18) ^ bits.RotateLeft64(e, -41)) +
-			((e & f) ^ (^e & g)) + sha512Constants[i] + w[i]
+			((e & f) ^ (^e & g)) + sha512Constants[i] + w512[i]
 		t2 := (bits.RotateLeft64(a, -28) ^ bits.RotateLeft64(a, -34) ^ bits.RotateLeft64(a, -39)) +
 			((a & b) ^ (a & c) ^ (b & c))
-		h = g
-		g = f
-		f = e
-		e = d + t1
-		d = c
-		c = b
-		b = a
+		e1 = d + t1
+		a1 = t1 + t2
+
+		t1 = g + (bits.RotateLeft64(e1, -14) ^ bits.RotateLeft64(e1, -18) ^ bits.RotateLeft64(e1, -41)) +
+			((e1 & e) ^ (^e1 & f)) + sha512Constants[i+1] + w512[i+1]
+		t2 = (bits.RotateLeft64(a1, -28) ^ bits.RotateLeft64(a1, -34) ^ bits.RotateLeft64(a1, -39)) +
+			((a1 & a) ^ (a1 & b) ^ (a & b))
+		e2 = c + t1
+		a2 = t1 + t2
+
+		t1 = f + (bits.RotateLeft64(e2, -14) ^ bits.RotateLeft64(e2, -18) ^ bits.RotateLeft64(e2, -41)) +
+			((e2 & e1) ^ (^e2 & e)) + sha512Constants[i+2] + w512[i+2]
+		t2 = (bits.RotateLeft64(a2, -28) ^ bits.RotateLeft64(a2, -34) ^ bits.RotateLeft64(a2, -39)) +
+			((a2 & a1) ^ (a2 & a) ^ (a1 & a))
+		e3 = b + t1
+		a3 = t1 + t2
+
+		t1 = e + (bits.RotateLeft64(e3, -14) ^ bits.RotateLeft64(e3, -18) ^ bits.RotateLeft64(e3, -41)) +
+			((e3 & e2) ^ (^e3 & e1)) + sha512Constants[i+3] + w512[i+3]
+		t2 = (bits.RotateLeft64(a3, -28) ^ bits.RotateLeft64(a3, -34) ^ bits.RotateLeft64(a3, -39)) +
+			((a3 & a2) ^ (a3 & a1) ^ (a2 & a1))
+		e4 = a + t1
+		a4 = t1 + t2
+
+		t1 = e1 + (bits.RotateLeft64(e4, -14) ^ bits.RotateLeft64(e4, -18) ^ bits.RotateLeft64(e4, -41)) +
+			((e4 & e3) ^ (^e4 & e2)) + sha512Constants[i+4] + w512[i+4]
+		t2 = (bits.RotateLeft64(a4, -28) ^ bits.RotateLeft64(a4, -34) ^ bits.RotateLeft64(a4, -39)) +
+			((a4 & a3) ^ (a4 & a2) ^ (a3 & a2))
+		h = a1 + t1
+		d = t1 + t2
+
+		t1 = e2 + (bits.RotateLeft64(h, -14) ^ bits.RotateLeft64(h, -18) ^ bits.RotateLeft64(h, -41)) +
+			((h & e4) ^ (^h & e3)) + sha512Constants[i+5] + w512[i+5]
+		t2 = (bits.RotateLeft64(d, -28) ^ bits.RotateLeft64(d, -34) ^ bits.RotateLeft64(d, -39)) +
+			((d & a4) ^ (d & a3) ^ (a4 & a3))
+		g = a2 + t1
+		c = t1 + t2
+
+		t1 = e3 + (bits.RotateLeft64(g, -14) ^ bits.RotateLeft64(g, -18) ^ bits.RotateLeft64(g, -41)) +
+			((g & h) ^ (^g & e4)) + sha512Constants[i+6] + w512[i+6]
+		t2 = (bits.RotateLeft64(c, -28) ^ bits.RotateLeft64(c, -34) ^ bits.RotateLeft64(c, -39)) +
+			((c & d) ^ (c & a4) ^ (d & a4))
+		f = a3 + t1
+		b = t1 + t2
+
+		t1 = e4 + (bits.RotateLeft64(f, -14) ^ bits.RotateLeft64(f, -18) ^ bits.RotateLeft64(f, -41)) +
+			((f & g) ^ (^f & h)) + sha512Constants[i+7] + w512[i+7]
+		t2 = (bits.RotateLeft64(b, -28) ^ bits.RotateLeft64(b, -34) ^ bits.RotateLeft64(b, -39)) +
+			((b & c) ^ (b & d) ^ (c & d))
+		e = a4 + t1
 		a = t1 + t2
 	}
 
@@ -327,5 +370,4 @@ func oneBlock512(hasher *hasher512, message []byte) {
 	hasher.hash512[5] += f
 	hasher.hash512[6] += g
 	hasher.hash512[7] += h
-
 }
