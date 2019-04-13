@@ -8,17 +8,21 @@
 package hasher
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
+	"reflect"
 )
 
 // TODO
-// 1. Find out if new can work; otherwise move on!!
+// 1. Find out if new can work; find out if shared Init can work; otherwise move on!!
 // 2. Fix then test maxLength logic
-// 3. Implement Marshall, Unmarshall; What is this json stuff in a struct, codec???
-// 4. Implement Thomas' interim calculate function; can we simply copy the hasher and Sum the copy?
+//X3. Implement Marshall, Unmarshall; What is this json stuff in a struct, codec???
+//X4. Implement Thomas' interim calculate function; can we simply copy the hasher and Sum the copy?
 // 5. Clean up code further; everything in sha256 should perfectly match sha512
 // 6. Fresh look at test strategy; build each small bit, then fuzz everything; also documentation
 // 7. Review documentation
+// 8. Profiling --> uint64 on sha256!
 
 // Hasher interface
 type Hasher interface {
@@ -42,9 +46,6 @@ const (
 	Sha512t256 HashAlgorithm = iota
 )
 
-// Reused magic constants
-var maxLengthBytes uint64 = 1 << 63 // Only support up to 2**63 bytes
-
 // New constructs a fresh instance. The HashAlgorithm algorithm can be specified here or deferred to Init().
 func New(hashAlgorithm HashAlgorithm) interface{ Hasher } {
 
@@ -65,4 +66,48 @@ func New(hashAlgorithm HashAlgorithm) interface{ Hasher } {
 		log.Fatal("Unknown (or None) hashAlgorithm")
 	}
 	return nil
+}
+
+func HashAlgorithm2(src Hasher) HashAlgorithm {
+	if reflect.TypeOf(src) == reflect.TypeOf(&sha224{}) {
+		return Sha224
+	}
+	switch reflect.TypeOf(src) {
+	case reflect.TypeOf(&sha224{}):
+		return Sha224
+	}
+	sType := reflect.TypeOf(src)
+	dType := reflect.TypeOf(&sha224{})
+	fmt.Printf("%v\n%v", sType, dType)
+	return None
+}
+
+func Copy(src Hasher) (Hasher, error) {
+	var dst Hasher
+	switch HashAlgorithm2(src) {
+	case Sha224:
+		dst = New(Sha224)
+	case Sha256:
+		dst = New(Sha256)
+	case Sha384:
+		dst = New(Sha384)
+	case Sha512:
+		dst = New(Sha512)
+	case Sha512t224:
+		dst = New(Sha512t224)
+	case Sha512t256:
+		dst = New(Sha512t256)
+	default:
+		log.Fatal("Passed bad source Hasher")
+	}
+
+	originalData, err := json.Marshal(&src)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(originalData, &dst)
+	if err != nil {
+		return nil, err
+	}
+	return dst, nil
 }

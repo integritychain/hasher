@@ -7,27 +7,27 @@ import (
 )
 
 type hasher512 struct {
-	fillLine     int
-	hash512      *[8]uint64
-	lenProcessed uint64
-	tempBlock512 *[128]byte
-	finished     bool
+	FillLine     int        `json:"fillLine"`
+	Finished     bool       `json:"finished"`
+	HashBlock512 *[8]uint64 `json:"hashBlock512"`
+	LenProcessed uint64     `json:"lenProcessed"`
+	TempBlock512 *[128]byte `json:"tempBlock512"`
 }
 
 type sha384 struct {
-	hasher512
+	hasher512 `json:"hasher384"`
 }
 
 type sha512 struct {
-	hasher512
+	hasher512 `json:"hasher512"`
 }
 
 type sha512t224 struct {
-	hasher512
+	hasher512 `json:"hasher512t224"`
 }
 
 type sha512t256 struct {
-	hasher512
+	hasher512 `json:"hasher512t256"`
 }
 
 const (
@@ -55,12 +55,12 @@ var sha512Constants = &[80]uint64{
 }
 
 func (hasher *sha384) Init(hashAlgorithm HashAlgorithm) Hasher {
-	if hasher.lenProcessed > 0 {
+	if hasher.LenProcessed > 0 {
 		log.Fatal("Cannot switch HashAlgorithms mid-calculation")
 	}
-	hasher.lenProcessed = 0
-	hasher.tempBlock512 = &[128]byte{0}
-	hasher.hash512 = &[8]uint64{ // The specific and unique initial hasher256 for SHA-384 H[0:7]
+	hasher.LenProcessed = 0
+	hasher.TempBlock512 = &[128]byte{0}
+	hasher.HashBlock512 = &[8]uint64{ // The specific and unique initial conditions for SHA-384 H[0:7]
 		0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17, 0x152fecd8f70e5939,
 		0x67332667ffc00b31, 0x8eb44a8768581511, 0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4,
 	}
@@ -68,12 +68,12 @@ func (hasher *sha384) Init(hashAlgorithm HashAlgorithm) Hasher {
 }
 
 func (hasher *sha512) Init(hashAlgorithm HashAlgorithm) Hasher {
-	if hasher.lenProcessed > 0 {
+	if hasher.LenProcessed > 0 {
 		log.Fatal("Cannot switch HashAlgorithms mid-calculation")
 	}
-	hasher.lenProcessed = 0
-	hasher.tempBlock512 = &[128]byte{0}
-	hasher.hash512 = &[8]uint64{ // The specific and unique initial hasher256 for SHA-512 H[0:7]
+	hasher.LenProcessed = 0
+	hasher.TempBlock512 = &[128]byte{0}
+	hasher.HashBlock512 = &[8]uint64{ // The specific and unique initial conditions for SHA-512 H[0:7]
 		0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
 		0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179,
 	}
@@ -81,12 +81,12 @@ func (hasher *sha512) Init(hashAlgorithm HashAlgorithm) Hasher {
 }
 
 func (hasher *sha512t224) Init(hashAlgorithm HashAlgorithm) Hasher {
-	if hasher.lenProcessed > 0 {
+	if hasher.LenProcessed > 0 {
 		log.Fatal("Cannot switch HashAlgorithms mid-calculation")
 	}
-	hasher.lenProcessed = 0
-	hasher.tempBlock512 = &[128]byte{0}
-	hasher.hash512 = &[8]uint64{ // The specific and unique initial hasher256 for SHA-512t224 H[0:7]
+	hasher.LenProcessed = 0
+	hasher.TempBlock512 = &[128]byte{0}
+	hasher.HashBlock512 = &[8]uint64{ // The specific and unique initial conditions for SHA-512t224 H[0:7]
 		0x8C3D37C819544DA2, 0x73E1996689DCD4D6, 0x1DFAB7AE32FF9C82, 0x679DD514582F9FCF,
 		0x0F6D2B697BD44DA8, 0x77E36F7304C48942, 0x3F9D85A86A1D36C8, 0x1112E6AD91D692A1,
 	}
@@ -94,12 +94,12 @@ func (hasher *sha512t224) Init(hashAlgorithm HashAlgorithm) Hasher {
 }
 
 func (hasher *sha512t256) Init(hashAlgorithm HashAlgorithm) Hasher {
-	if hasher.lenProcessed > 0 {
+	if hasher.LenProcessed > 0 {
 		log.Fatal("Cannot switch HashAlgorithms mid-calculation")
 	}
-	hasher.lenProcessed = 0
-	hasher.tempBlock512 = &[128]byte{0}
-	hasher.hash512 = &[8]uint64{ // The specific and unique initial hasher256 for SHA-512t256 H[0:7]
+	hasher.LenProcessed = 0
+	hasher.TempBlock512 = &[128]byte{0}
+	hasher.HashBlock512 = &[8]uint64{ // The specific and unique initial conditions for SHA-512t256 H[0:7]
 		0x22312194FC2BF72C, 0x9F555FA3C84C64C2, 0x2393B86B6F53B151, 0x963877195940EABD,
 		0x96283EE2A88EFFE3, 0xBE5E1E2553863992, 0x2B0199FC2C85B8AA, 0x0EB72DDC81C52CA2,
 	}
@@ -143,84 +143,84 @@ func (hasher *sha512t256) Write(message []byte) Hasher {
 }
 
 func (hasher *sha384) Sum() interface{} {
-	if !hasher.finished {
+	if !hasher.Finished {
 		finalize512(&hasher.hasher512)
 	}
-	hasher.finished = true
+	hasher.Finished = true
 	var digest [48]byte
 	for index := 0; index < 48; index += 8 {
-		binary.BigEndian.PutUint64(digest[index:index+8], hasher.hash512[index/8])
+		binary.BigEndian.PutUint64(digest[index:index+8], hasher.HashBlock512[index/8])
 	}
 	return digest
 }
 
 func (hasher *sha512) Sum() interface{} {
-	if !hasher.finished {
+	if !hasher.Finished {
 		finalize512(&hasher.hasher512)
 	}
-	hasher.finished = true
+	hasher.Finished = true
 	var digest [64]byte
 	for index := 0; index < 64; index += 8 {
-		binary.BigEndian.PutUint64(digest[index:index+8], hasher.hash512[index/8])
+		binary.BigEndian.PutUint64(digest[index:index+8], hasher.HashBlock512[index/8])
 	}
 	return digest
 }
 
 func (hasher *sha512t224) Sum() interface{} {
-	if !hasher.finished {
+	if !hasher.Finished {
 		finalize512(&hasher.hasher512)
 	}
-	hasher.finished = true
+	hasher.Finished = true
 	var digest [28]byte
 	for index := 0; index < 24; index += 8 {
-		binary.BigEndian.PutUint64(digest[index:index+8], hasher.hash512[index/8])
+		binary.BigEndian.PutUint64(digest[index:index+8], hasher.HashBlock512[index/8])
 	}
-	binary.BigEndian.PutUint32(digest[24:28], uint32(hasher.hash512[3]>>32)) // Pesky left-over
+	binary.BigEndian.PutUint32(digest[24:28], uint32(hasher.HashBlock512[3]>>32)) // Pesky left-over
 	return digest
 }
 
 func (hasher *sha512t256) Sum() interface{} {
-	if !hasher.finished {
+	if !hasher.Finished {
 		finalize512(&hasher.hasher512)
 	}
-	hasher.finished = true
+	hasher.Finished = true
 	var digest [32]byte
 	for index := 0; index < 32; index += 8 {
-		binary.BigEndian.PutUint64(digest[index:index+8], hasher.hash512[index/8])
+		binary.BigEndian.PutUint64(digest[index:index+8], hasher.HashBlock512[index/8])
 	}
 	return digest
 }
 
 func write512(hasher *hasher512, message []byte) {
-	if hasher.finished {
+	if hasher.Finished {
 		log.Fatal("Cannot call Write() after Sum() because hasher is finished")
 	}
 
 	// If message will fit into non-empty tempBlock and still not fill it, then append it, adjust status and finish
-	if len(message)+hasher.fillLine < bYTESINBLOCK512 {
-		copy(hasher.tempBlock512[hasher.fillLine:hasher.fillLine+len(message)], message)
-		hasher.lenProcessed += uint64(len(message))
-		hasher.fillLine += len(message)
+	if len(message)+hasher.FillLine < bYTESINBLOCK512 {
+		copy(hasher.TempBlock512[hasher.FillLine:hasher.FillLine+len(message)], message)
+		hasher.LenProcessed += uint64(len(message))
+		hasher.FillLine += len(message)
 		return
 	}
 
 	// If non-empty tempBlock and message can fill it, then append it, hasher256 it and call back with message segment
-	if hasher.fillLine > 0 && len(message)+hasher.fillLine > (bYTESINBLOCK512-1) {
-		copy(hasher.tempBlock512[hasher.fillLine:hasher.fillLine+(bYTESINBLOCK512-hasher.fillLine)], message)
-		hasher.lenProcessed += uint64(bYTESINBLOCK512 - hasher.fillLine)
-		oneBlock512(hasher, hasher.tempBlock512[:])
-		var tempFill = bYTESINBLOCK512 - hasher.fillLine
-		hasher.fillLine = 0
+	if hasher.FillLine > 0 && len(message)+hasher.FillLine > (bYTESINBLOCK512-1) {
+		copy(hasher.TempBlock512[hasher.FillLine:hasher.FillLine+(bYTESINBLOCK512-hasher.FillLine)], message)
+		hasher.LenProcessed += uint64(bYTESINBLOCK512 - hasher.FillLine)
+		oneBlock512(hasher, hasher.TempBlock512[:])
+		var tempFill = bYTESINBLOCK512 - hasher.FillLine
+		hasher.FillLine = 0
 		write512(hasher, message[tempFill:]) // One-off recursion
 		return
 	}
 
 	// If empty tempBlock and message > block size, then hasher256 the blocks
 	var index int
-	for (hasher.fillLine == 0) && (len(message)-index > (bYTESINBLOCK512 - 1)) {
+	for (hasher.FillLine == 0) && (len(message)-index > (bYTESINBLOCK512 - 1)) {
 		oneBlock512(hasher, message[index:index+bYTESINBLOCK512])
 		index += bYTESINBLOCK512
-		hasher.lenProcessed += uint64(bYTESINBLOCK512)
+		hasher.LenProcessed += uint64(bYTESINBLOCK512)
 	}
 
 	// If we still have a little bit of message remaining, call back
@@ -235,45 +235,45 @@ func write512(hasher *hasher512, message []byte) {
 func finalize512(hasher *hasher512) {
 
 	// Finalize by hashing last block if padding will fit
-	if hasher.fillLine < mAXBYTESINBLOCK512 {
+	if hasher.FillLine < mAXBYTESINBLOCK512 {
 		lastBlock512(hasher)
 	}
 
 	// Finalize by hashing two last blocks if padding will NOT fit
-	if hasher.fillLine >= mAXBYTESINBLOCK512 && hasher.fillLine < bYTESINBLOCK512 {
+	if hasher.FillLine >= mAXBYTESINBLOCK512 && hasher.FillLine < bYTESINBLOCK512 {
 		fillBlock512(hasher)
-		oneBlock512(hasher, hasher.tempBlock512[:])
-		hasher.fillLine = 0
+		oneBlock512(hasher, hasher.TempBlock512[:])
+		hasher.FillLine = 0
 		fillBlock512(hasher)
-		hasher.tempBlock512[hasher.fillLine] = 0
+		hasher.TempBlock512[hasher.FillLine] = 0
 		tagLength512(hasher)
-		oneBlock512(hasher, hasher.tempBlock512[:])
+		oneBlock512(hasher, hasher.TempBlock512[:])
 	}
 
 	// Clear working data
-	hasher.fillLine = 0
+	hasher.FillLine = 0
 	fillBlock512(hasher)
 }
 
 // Mark the end of data and fill remainder with zeros; only for tempBlocks
 func fillBlock512(hasher *hasher512) {
-	hasher.tempBlock512[hasher.fillLine] = 128 // Set MSB
-	for index := hasher.fillLine + 1; index < bYTESINBLOCK512; index++ {
-		hasher.tempBlock512[index] = 0x00 // Clear MSB
+	hasher.TempBlock512[hasher.FillLine] = 128 // Set MSB
+	for index := hasher.FillLine + 1; index < bYTESINBLOCK512; index++ {
+		hasher.TempBlock512[index] = 0x00 // Clear MSB
 	}
 }
 
 // Insert message length tag at the end; only for tempBlocks
 func tagLength512(hasher *hasher512) {
-	hasher.lenProcessed *= 8
-	binary.BigEndian.PutUint64(hasher.tempBlock512[mAXBYTESINBLOCK512+8:bYTESINBLOCK512], hasher.lenProcessed)
+	hasher.LenProcessed *= 8
+	binary.BigEndian.PutUint64(hasher.TempBlock512[mAXBYTESINBLOCK512+8:bYTESINBLOCK512], hasher.LenProcessed)
 }
 
 // Hash the very last block; only for tempBlocks
 func lastBlock512(hasher *hasher512) {
 	fillBlock512(hasher)
 	tagLength512(hasher)
-	oneBlock512(hasher, hasher.tempBlock512[:])
+	oneBlock512(hasher, hasher.TempBlock512[:])
 }
 
 // Message schedule
@@ -301,8 +301,8 @@ func oneBlock512(hasher *hasher512, message []byte) {
 
 	// Initialize working variables
 	var a, b, c, d, e, f, g, h, e1, e2, e3, e4, a1, a2, a3, a4 uint64
-	a, b, c, d, e, f, g, h = hasher.hash512[0], hasher.hash512[1], hasher.hash512[2], hasher.hash512[3],
-		hasher.hash512[4], hasher.hash512[5], hasher.hash512[6], hasher.hash512[7]
+	a, b, c, d, e, f, g, h = hasher.HashBlock512[0], hasher.HashBlock512[1], hasher.HashBlock512[2], hasher.HashBlock512[3],
+		hasher.HashBlock512[4], hasher.HashBlock512[5], hasher.HashBlock512[6], hasher.HashBlock512[7]
 
 	for i := 0; i < 80; i = i + 8 {
 		t1 := h + (bits.RotateLeft64(e, -14) ^ bits.RotateLeft64(e, -18) ^ bits.RotateLeft64(e, -41)) +
@@ -362,12 +362,12 @@ func oneBlock512(hasher *hasher512, message []byte) {
 		a = t1 + t2
 	}
 
-	hasher.hash512[0] += a
-	hasher.hash512[1] += b
-	hasher.hash512[2] += c
-	hasher.hash512[3] += d
-	hasher.hash512[4] += e
-	hasher.hash512[5] += f
-	hasher.hash512[6] += g
-	hasher.hash512[7] += h
+	hasher.HashBlock512[0] += a
+	hasher.HashBlock512[1] += b
+	hasher.HashBlock512[2] += c
+	hasher.HashBlock512[3] += d
+	hasher.HashBlock512[4] += e
+	hasher.HashBlock512[5] += f
+	hasher.HashBlock512[6] += g
+	hasher.HashBlock512[7] += h
 }

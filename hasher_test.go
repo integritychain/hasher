@@ -3,6 +3,7 @@ package hasher_test
 import (
 	cryptoSha256 "crypto/sha256"
 	cryptoSha512 "crypto/sha512"
+	"encoding/json"
 	"fmt"
 	. "hasher"
 	"math/rand" // Repeatable is good
@@ -18,6 +19,79 @@ func assertEquals(t *testing.T, expected interface{}, actual interface{}, messag
 		t.Error(fmt.Sprintf("Expected %v,\n    got %v\n %v", expected, actual, message))
 		t.Logf(string(debug.Stack()))
 	}
+}
+
+func ExampleHashAlgorithm2() {
+	var instance Hasher
+	instance = New(Sha224).Write([]byte("a message"))
+	x := HashAlgorithm2(instance)
+	fmt.Println(x)
+	// Output: 1
+}
+
+func ExampleJsonMarshal() {
+	var instance Hasher
+
+	instance = New(Sha224).Write([]byte("a message"))
+	iString, _ := json.Marshal(&instance)
+	fmt.Println(string(iString))
+
+	instance = New(Sha256).Write([]byte("a message"))
+	iString, _ = json.Marshal(&instance)
+	fmt.Println(string(iString))
+
+	instance = New(Sha384).Write([]byte("a message"))
+	iString, _ = json.Marshal(&instance)
+	fmt.Println(string(iString))
+
+	instance = New(Sha512).Write([]byte("a message"))
+	iString, _ = json.Marshal(&instance)
+	fmt.Println(string(iString))
+
+	instance = New(Sha512t224).Write([]byte("a message"))
+	iString, _ = json.Marshal(&instance)
+	fmt.Println(string(iString))
+
+	instance = New(Sha512t256).Write([]byte("a message"))
+	iString, _ = json.Marshal(&instance)
+	fmt.Println(string(iString))
+
+	// Output: {"hasher224":{"fillLine":9,"finished":false,"hashBlock256":[3238371032,914150663,812702999,4144912697,4290775857,1750603025,1694076839,3204075428],"lenProcessed":9,"tempBlock256":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+	// {"hasher256":{"fillLine":9,"finished":false,"hashBlock256":[1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225],"lenProcessed":9,"tempBlock256":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+	// {"hasher384":{"fillLine":9,"finished":false,"hashBlock512":[14680500436340154072,7105036623409894663,10473403895298186519,1526699215303891257,7436329637833083697,10282925794625328401,15784041429090275239,5167115440072839076],"lenProcessed":9,"tempBlock512":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+	// {"hasher512":{"fillLine":9,"finished":false,"hashBlock512":[7640891576956012808,13503953896175478587,4354685564936845355,11912009170470909681,5840696475078001361,11170449401992604703,2270897969802886507,6620516959819538809],"lenProcessed":9,"tempBlock512":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+	// {"hasher512t224":{"fillLine":9,"finished":false,"hashBlock512":[10105294471447203234,8350123849800275158,2160240930085379202,7466358040605728719,1111592415079452072,8638871050018654530,4583966954114332360,1230299281376055969],"lenProcessed":9,"tempBlock512":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+	// {"hasher512t256":{"fillLine":9,"finished":false,"hashBlock512":[2463787394917988140,11481187982095705282,2563595384472711505,10824532655140301501,10819967247969091555,13717434660681038226,3098927326965381290,1060366662362279074],"lenProcessed":9,"tempBlock512":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+}
+
+func ExampleJsonUnmarshal() {
+
+	var originalInstance, newInstance Hasher
+
+	originalInstance = New(Sha224).Write([]byte("a message"))
+	originalData, _ := json.Marshal(&originalInstance)
+
+	newInstance = New(Sha224)
+	_ = json.Unmarshal(originalData, &newInstance)
+	newData, _ := json.Marshal(&newInstance)
+
+	fmt.Printf("%v\n%v", string(originalData), string(newData))
+	// Output: {"hasher224":{"fillLine":9,"finished":false,"hashBlock256":[3238371032,914150663,812702999,4144912697,4290775857,1750603025,1694076839,3204075428],"lenProcessed":9,"tempBlock256":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+	// {"hasher224":{"fillLine":9,"finished":false,"hashBlock256":[3238371032,914150663,812702999,4144912697,4290775857,1750603025,1694076839,3204075428],"lenProcessed":9,"tempBlock256":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+}
+
+func ExampleInterimSum() {
+
+	// Improve this to show moving on...
+	var instance Hasher
+	instance = New(Sha256).Write([]byte("a message"))
+	originalData, _ := json.Marshal(&instance)
+	var newInstance = New(Sha256)
+	_ = json.Unmarshal(originalData, &newInstance)
+	fmt.Printf("%v\n%v", instance.Sum(), newInstance.Sum())
+	// Output: [245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
+	//[245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
+
 }
 
 /*
@@ -142,7 +216,9 @@ func TestSha256ShortSingles(t *testing.T) {
 
 	for _, tt := range testCases {
 		instance = New(Sha256)
-		actual := instance.Write([]byte(tt)).Sum()
+		actual := instance.
+			Write([]byte(tt)).
+			Sum()
 		expected := cryptoSha256.Sum256([]byte(tt))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
 	}
@@ -308,7 +384,7 @@ FUZZ EVERYTHING! This also highlights the coolness of streaming writes.
 
 func TestFuzzEverything(t *testing.T) {
 
-	for iterations := 0; iterations < 100000; iterations++ {
+	for iterations := 0; iterations < 1000; iterations++ {
 
 		// 5 random message lengths
 		var length1 = rand.Intn(500)
@@ -386,7 +462,7 @@ Benchmark 256/512 hasher256 algorithms with a random 1MB message. go test -bench
 //BenchmarkHasherSha256-8   	   50000	     31748 ns/op
 //BenchmarkGolangSha256-8   	  100000	     15987 ns/op
 
-// 5. Now unrull SHA512!
+// 5. Now unroll SHA512!
 
 var bMsg = []byte{0}
 

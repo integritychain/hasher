@@ -7,19 +7,19 @@ import (
 )
 
 type hasher256 struct {
-	fillLine     int
-	hash256      *[8]uint32
-	lenProcessed uint64
-	tempBlock256 *[64]byte
-	finished     bool
+	FillLine     int        `json:"fillLine"`
+	Finished     bool       `json:"finished"`
+	HashBlock256 *[8]uint32 `json:"hashBlock256"`
+	LenProcessed uint64     `json:"lenProcessed"`
+	TempBlock256 *[64]byte  `json:"tempBlock256"`
 }
 
 type sha224 struct {
-	hasher256
+	hasher256 `json:"hasher224"`
 }
 
 type sha256 struct {
-	hasher256
+	hasher256 `json:"hasher256"`
 }
 
 const (
@@ -39,24 +39,24 @@ var sha256Constants = [64]uint32{
 }
 
 func (hasher *sha224) Init(hashAlgorithm HashAlgorithm) Hasher {
-	if hasher.lenProcessed > 0 {
+	if hasher.LenProcessed > 0 {
 		log.Fatal("Cannot switch HashAlgorithms mid-calculation")
 	}
-	hasher.lenProcessed = 0
-	hasher.tempBlock256 = &[64]byte{0}
-	hasher.hash256 = &[8]uint32{ // The specific and unique initial hasher256 for SHA-224 H[0:7]
+	hasher.LenProcessed = 0
+	hasher.TempBlock256 = &[64]byte{0}
+	hasher.HashBlock256 = &[8]uint32{ // The specific and unique initial conditions for SHA-224 H[0:7]
 		0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4,
 	}
 	return hasher
 }
 
 func (hasher *sha256) Init(hashAlgorithm HashAlgorithm) Hasher {
-	if hasher.lenProcessed > 0 {
+	if hasher.LenProcessed > 0 {
 		log.Fatal("Cannot switch HashAlgorithms mid-calculation")
 	}
-	hasher.lenProcessed = 0
-	hasher.tempBlock256 = &[64]byte{0}
-	hasher.hash256 = &[8]uint32{ // The specific and unique initial hasher256 for SHA-256 H[0:7]
+	hasher.LenProcessed = 0
+	hasher.TempBlock256 = &[64]byte{0}
+	hasher.HashBlock256 = &[8]uint32{ // The specific and unique initial conditions for SHA-256 H[0:7]
 		0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 	}
 	return hasher
@@ -81,60 +81,63 @@ func (hasher *sha256) Write(message []byte) Hasher {
 }
 
 func (hasher *sha224) Sum() interface{} {
-	if !hasher.finished {
+	if !hasher.Finished {
 		finalize256(&hasher.hasher256)
 	}
-	hasher.finished = true
+	hasher.Finished = true
 	var digest [28]byte
 	for index := 0; index < 28; index += 4 {
-		binary.BigEndian.PutUint32(digest[index:index+4], hasher.hash256[index/4])
+		binary.BigEndian.PutUint32(digest[index:index+4], hasher.HashBlock256[index/4])
 	}
 	return digest
 }
 
 func (hasher *sha256) Sum() interface{} {
-	if !hasher.finished {
+	if !hasher.Finished {
 		finalize256(&hasher.hasher256)
 	}
-	hasher.finished = true
+	hasher.Finished = true
 	var digest [32]byte
 	for index := 0; index < 32; index += 4 {
-		binary.BigEndian.PutUint32(digest[index:index+4], hasher.hash256[index/4])
+		binary.BigEndian.PutUint32(digest[index:index+4], hasher.HashBlock256[index/4])
 	}
 	return digest
 
 }
 
 func write256(hasher *hasher256, message []byte) {
-	if hasher.finished {
+	if hasher.Finished {
 		log.Fatal("Cannot call Write() after Sum() because hasher is finished")
+	}
+	if hasher.LenProcessed+uint64(len(message)) < hasher.LenProcessed {
+		log.Fatal("Total message length of 2**64 has been exceeded")
 	}
 
 	// If message will fit into non-empty tempBlock and still not fill it, then append it, adjust status and finish
-	if len(message)+hasher.fillLine < bYTESINBLOCK256 {
-		copy(hasher.tempBlock256[hasher.fillLine:hasher.fillLine+len(message)], message)
-		hasher.lenProcessed += uint64(len(message))
-		hasher.fillLine += len(message)
+	if len(message)+hasher.FillLine < bYTESINBLOCK256 {
+		copy(hasher.TempBlock256[hasher.FillLine:hasher.FillLine+len(message)], message)
+		hasher.LenProcessed += uint64(len(message))
+		hasher.FillLine += len(message)
 		return
 	}
 
 	// If non-empty tempBlock and message can fill it, then append it, hasher256 it and call back with message segment
-	if hasher.fillLine > 0 && len(message)+hasher.fillLine > (bYTESINBLOCK256-1) {
-		copy(hasher.tempBlock256[hasher.fillLine:hasher.fillLine+(bYTESINBLOCK256-hasher.fillLine)], message)
-		hasher.lenProcessed += uint64(bYTESINBLOCK256 - hasher.fillLine)
-		oneBlock256(hasher, hasher.tempBlock256[:])
-		var tempFill = bYTESINBLOCK256 - hasher.fillLine
-		hasher.fillLine = 0
+	if hasher.FillLine > 0 && len(message)+hasher.FillLine > (bYTESINBLOCK256-1) {
+		copy(hasher.TempBlock256[hasher.FillLine:hasher.FillLine+(bYTESINBLOCK256-hasher.FillLine)], message)
+		hasher.LenProcessed += uint64(bYTESINBLOCK256 - hasher.FillLine)
+		oneBlock256(hasher, hasher.TempBlock256[:])
+		var tempFill = bYTESINBLOCK256 - hasher.FillLine
+		hasher.FillLine = 0
 		write256(hasher, message[tempFill:]) // One-off recursion
 		return
 	}
 
 	// If empty tempBlock and message > block size, then hasher256 the blocks
 	var index int
-	for (hasher.fillLine == 0) && (len(message)-index > (bYTESINBLOCK256 - 1)) {
+	for (hasher.FillLine == 0) && (len(message)-index > (bYTESINBLOCK256 - 1)) {
 		oneBlock256(hasher, message[index:index+bYTESINBLOCK256])
 		index += bYTESINBLOCK256
-		hasher.lenProcessed += uint64(bYTESINBLOCK256)
+		hasher.LenProcessed += uint64(bYTESINBLOCK256)
 	}
 
 	// If we still have a little bit of message remaining, call back
@@ -146,46 +149,46 @@ func write256(hasher *hasher256, message []byte) {
 func finalize256(hasher *hasher256) {
 
 	// Finalize by hashing last block if padding will fit
-	if hasher.fillLine < mAXBYTESINBLOCK256 {
+	if hasher.FillLine < mAXBYTESINBLOCK256 {
 		lastBlock256(hasher)
 	}
 
 	// Finalize by hashing two last blocks if padding will NOT fit
-	if hasher.fillLine >= mAXBYTESINBLOCK256 && hasher.fillLine < bYTESINBLOCK256 {
+	if hasher.FillLine >= mAXBYTESINBLOCK256 && hasher.FillLine < bYTESINBLOCK256 {
 		fillBlock256(hasher)
-		oneBlock256(hasher, hasher.tempBlock256[:])
+		oneBlock256(hasher, hasher.TempBlock256[:])
 
-		hasher.fillLine = 0
+		hasher.FillLine = 0
 		fillBlock256(hasher)
-		hasher.tempBlock256[hasher.fillLine] = 0
+		hasher.TempBlock256[hasher.FillLine] = 0
 
 		tagLength256(hasher)
-		oneBlock256(hasher, hasher.tempBlock256[:])
+		oneBlock256(hasher, hasher.TempBlock256[:])
 
 	}
 
 	// Clear working data
-	hasher.fillLine = 0
+	hasher.FillLine = 0
 	fillBlock256(hasher)
 }
 
 func fillBlock256(hasher *hasher256) {
-	hasher.tempBlock256[hasher.fillLine] = 128 // Set MSB
-	for index := hasher.fillLine + 1; index < bYTESINBLOCK256; index++ {
-		hasher.tempBlock256[index] = 0x00 // Clear MSB
+	hasher.TempBlock256[hasher.FillLine] = 128 // Set MSB
+	for index := hasher.FillLine + 1; index < bYTESINBLOCK256; index++ {
+		hasher.TempBlock256[index] = 0x00 // Clear MSB
 	}
 }
 
 func tagLength256(hasher *hasher256) {
-	hasher.lenProcessed *= 8
-	binary.BigEndian.PutUint64(hasher.tempBlock256[mAXBYTESINBLOCK256:bYTESINBLOCK256], hasher.lenProcessed)
+	hasher.LenProcessed *= 8
+	binary.BigEndian.PutUint64(hasher.TempBlock256[mAXBYTESINBLOCK256:bYTESINBLOCK256], hasher.LenProcessed)
 
 }
 
 func lastBlock256(hasher *hasher256) {
 	fillBlock256(hasher)
 	tagLength256(hasher)
-	oneBlock256(hasher, hasher.tempBlock256[:])
+	oneBlock256(hasher, hasher.TempBlock256[:])
 }
 
 // Message schedule
@@ -213,8 +216,8 @@ func oneBlock256(hasher *hasher256, message []byte) {
 
 	// Initialize working variables
 	var a, b, c, d, e, f, g, h, e1, e2, e3, e4, a1, a2, a3, a4 uint32
-	a, b, c, d, e, f, g, h = hasher.hash256[0], hasher.hash256[1], hasher.hash256[2], hasher.hash256[3],
-		hasher.hash256[4], hasher.hash256[5], hasher.hash256[6], hasher.hash256[7]
+	a, b, c, d, e, f, g, h = hasher.HashBlock256[0], hasher.HashBlock256[1], hasher.HashBlock256[2], hasher.HashBlock256[3],
+		hasher.HashBlock256[4], hasher.HashBlock256[5], hasher.HashBlock256[6], hasher.HashBlock256[7]
 
 	for i := 0; i < 64; i += 8 {
 
@@ -275,12 +278,12 @@ func oneBlock256(hasher *hasher256, message []byte) {
 		a = t1 + t2
 	}
 
-	hasher.hash256[0] += a
-	hasher.hash256[1] += b
-	hasher.hash256[2] += c
-	hasher.hash256[3] += d
-	hasher.hash256[4] += e
-	hasher.hash256[5] += f
-	hasher.hash256[6] += g
-	hasher.hash256[7] += h
+	hasher.HashBlock256[0] += a
+	hasher.HashBlock256[1] += b
+	hasher.HashBlock256[2] += c
+	hasher.HashBlock256[3] += d
+	hasher.HashBlock256[4] += e
+	hasher.HashBlock256[5] += f
+	hasher.HashBlock256[6] += g
+	hasher.HashBlock256[7] += h
 }
