@@ -1,8 +1,8 @@
 package hasher_test
 
 import (
-	cryptoSha256 "crypto/sha256"
-	cryptoSha512 "crypto/sha512"
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/json"
 	"fmt"
 	. "hasher"
@@ -24,7 +24,7 @@ func assertEquals(t *testing.T, expected interface{}, actual interface{}, messag
 func ExampleHashAlgorithm2() {
 	var instance Hasher
 	instance = New(Sha224).Write([]byte("a message"))
-	x := Algorithm(instance)
+	x := instance.HashAlgorithm()
 	fmt.Println(x)
 	// Output: 1
 }
@@ -80,7 +80,19 @@ func ExampleJsonUnmarshal() {
 	// {"hasher224":{"fillLine":9,"finished":false,"hashBlock256":[3238371032,914150663,812702999,4144912697,4290775857,1750603025,1694076839,3204075428],"lenProcessed":9,"tempBlock256":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
 }
 
-func ExampleInterimSum() {
+func ExampleSha224_InterimSum() {
+	// Improve this to show moving on...
+	var instance Hasher
+	instance = New(Sha256).Write([]byte("a message"))
+	originalData, _ := json.Marshal(&instance)
+	var newInstance = New(Sha256)
+	_ = json.Unmarshal(originalData, &newInstance)
+	fmt.Printf("%v\n%v", instance.Sum(), newInstance.Sum())
+	// Output: [245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
+	//[245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
+}
+
+func Example_InterimSum() {
 
 	// Improve this to show moving on...
 	var instance Hasher
@@ -136,7 +148,7 @@ Examples for documentation
 
 func ExampleHasher_HashAlgorithm() {
 	var instance = New(Sha256)
-	var hashAlgorithm = Algorithm(instance)
+	var hashAlgorithm = instance.HashAlgorithm()
 	fmt.Println(hashAlgorithm, Sha256)
 	// Output: 2 2
 
@@ -188,7 +200,7 @@ Test the constructor and initialization
 func TestNew(t *testing.T) {
 	var expected = Sha256
 	instance = New(expected)
-	assertEquals(t, expected, Algorithm(instance), "")
+	assertEquals(t, expected, instance.HashAlgorithm(), "")
 }
 
 //func TestNewInit(t *testing.T) {
@@ -201,7 +213,7 @@ func TestEmpty(t *testing.T) {
 	var message []byte
 	instance = New(Sha256)
 	actual := instance.Write(message).Sum()
-	expected := cryptoSha256.Sum256(message)
+	expected := sha256.Sum256(message)
 	assertEquals(t, expected, actual, "")
 }
 
@@ -220,7 +232,7 @@ func TestSha256ShortSingles(t *testing.T) {
 		actual := instance.
 			Write([]byte(tt)).
 			Sum()
-		expected := cryptoSha256.Sum256([]byte(tt))
+		expected := sha256.Sum256([]byte(tt))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
 	}
 }
@@ -234,7 +246,7 @@ func TestSha224ShortSingles(t *testing.T) {
 	for _, tt := range testCases {
 		instance = New(Sha224) //.init(Sha224)
 		actual := instance.Write([]byte(tt)).Sum()
-		expected := cryptoSha256.Sum224([]byte(tt))
+		expected := sha256.Sum224([]byte(tt))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
 	}
 }
@@ -248,7 +260,7 @@ func TestSha512ShortSingles(t *testing.T) {
 	for _, tt := range testCases {
 		instance = New(Sha512)
 		actual := instance.Write([]byte(tt)).Sum()
-		expected := cryptoSha512.Sum512([]byte(tt))
+		expected := sha512.Sum512([]byte(tt))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
 	}
 }
@@ -262,7 +274,7 @@ func TestSha384ShortSingles(t *testing.T) {
 	for _, tt := range testCases {
 		instance = New(Sha384)
 		actual := instance.Write([]byte(tt)).Sum()
-		expected := cryptoSha512.Sum384([]byte(tt))
+		expected := sha512.Sum384([]byte(tt))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
 	}
 }
@@ -276,7 +288,7 @@ func TestSha512t224ShortSingles(t *testing.T) {
 	for _, tt := range testCases {
 		instance = New(Sha512t224)
 		actual := instance.Write([]byte(tt)).Sum()
-		expected := cryptoSha512.Sum512_224([]byte(tt))
+		expected := sha512.Sum512_224([]byte(tt))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
 	}
 }
@@ -290,7 +302,7 @@ func TestSha512t256ShortSingles(t *testing.T) {
 	for _, tt := range testCases {
 		instance = New(Sha512t256)
 		actual := instance.Write([]byte(tt)).Sum()
-		expected := cryptoSha512.Sum512_256([]byte(tt))
+		expected := sha512.Sum512_256([]byte(tt))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
 	}
 }
@@ -306,7 +318,7 @@ func TestSha256ShortCombos(t *testing.T) {
 
 	instance = New(Sha256)
 	actual := instance.Write([]byte(a)).Write([]byte(b)).Sum()
-	expected := cryptoSha256.Sum256([]byte(a + b))
+	expected := sha256.Sum256([]byte(a + b))
 	assertEquals(t, expected, actual, "")
 
 }
@@ -318,7 +330,7 @@ func TestSha512ShortCombos(t *testing.T) {
 
 	instance = New(Sha512)
 	actual := instance.Write([]byte(a)).Write([]byte(b)).Sum()
-	expected := cryptoSha512.Sum512([]byte(a + b))
+	expected := sha512.Sum512([]byte(a + b))
 	assertEquals(t, expected, actual, "")
 
 }
@@ -334,7 +346,7 @@ func TestSha256MediumSingles(t *testing.T) {
 		rand.Read(message)
 		instance = New(Sha256)
 		actual := instance.Write([]byte(message)).Sum()
-		expected := cryptoSha256.Sum256([]byte(message))
+		expected := sha256.Sum256([]byte(message))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
 	}
 }
@@ -346,7 +358,7 @@ func TestSha512MediumSingles(t *testing.T) {
 		rand.Read(message)
 		instance = New(Sha512)
 		actual := instance.Write([]byte(message)).Sum()
-		expected := cryptoSha512.Sum512([]byte(message))
+		expected := sha512.Sum512([]byte(message))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
 	}
 }
@@ -362,7 +374,7 @@ func TestSha256Random(t *testing.T) {
 		rand.Read(message)
 		instance = New(Sha256)
 		actual := instance.Write(message).Sum()
-		expected := cryptoSha256.Sum256(message)
+		expected := sha256.Sum256(message)
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
 	}
 }
@@ -374,7 +386,7 @@ func TestSha512Random(t *testing.T) {
 		rand.Read(message)
 		instance = New(Sha512)
 		actual := instance.Write(message).Sum()
-		expected := cryptoSha512.Sum512(message)
+		expected := sha512.Sum512(message)
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
 	}
 }
@@ -411,37 +423,37 @@ func TestFuzzEverything(t *testing.T) {
 		// Sha256
 		instance = New(Sha256)
 		actual := instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
-		expected1 := cryptoSha256.Sum256(bigMsg)
+		expected1 := sha256.Sum256(bigMsg)
 		assertEquals(t, expected1, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 
 		// Sha224
 		instance = New(Sha224)
 		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
-		expected2 := cryptoSha256.Sum224(bigMsg)
+		expected2 := sha256.Sum224(bigMsg)
 		assertEquals(t, expected2, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 
 		// Sha512
 		instance = New(Sha512)
 		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
-		expected3 := cryptoSha512.Sum512(bigMsg)
+		expected3 := sha512.Sum512(bigMsg)
 		assertEquals(t, expected3, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 
 		// Sha384
 		instance = New(Sha384)
 		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
-		expected4 := cryptoSha512.Sum384(bigMsg)
+		expected4 := sha512.Sum384(bigMsg)
 		assertEquals(t, expected4, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 
 		// Sha512t224
 		instance = New(Sha512t224)
 		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
-		expected5 := cryptoSha512.Sum512_224(bigMsg)
+		expected5 := sha512.Sum512_224(bigMsg)
 		assertEquals(t, expected5, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 
 		// Sha512t256
 		instance = New(Sha512t256)
 		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
-		expected6 := cryptoSha512.Sum512_256(bigMsg)
+		expected6 := sha512.Sum512_256(bigMsg)
 		assertEquals(t, expected6, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 	}
 }
@@ -459,7 +471,7 @@ Benchmark 256/512 hasher256 algorithms with a random 1MB message. go test -bench
 // 2. Changing lenProcesses from bigInt to uint63 helps just under 3%
 // 3. Changing for loop to copy helped very marginally at best
 
-// 4. Unrolling of cryptoSha256 helps a lot, see below
+// 4. Unrolling of sha256 helps a lot, see below
 //BenchmarkHasherSha256-8   	   50000	     31748 ns/op
 //BenchmarkGolangSha256-8   	  100000	     15987 ns/op
 
@@ -482,7 +494,7 @@ func BenchmarkHasherSha256(b *testing.B) {
 
 func BenchmarkGolangSha256(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		cryptoSha256.Sum256(bMsg)
+		sha256.Sum256(bMsg)
 	}
 }
 
@@ -494,6 +506,6 @@ func BenchmarkHasherSha512(b *testing.B) {
 
 func BenchmarkGolangSha512(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		cryptoSha512.Sum512(bMsg)
+		sha512.Sum512(bMsg)
 	}
 }

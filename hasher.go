@@ -10,22 +10,25 @@ package hasher
 import (
 	"encoding/json"
 	"log"
-	"reflect"
 )
 
 // TODO
-// 1. Consider whether Algorithm(), Copy() and InterimSum() should be bound to each type
-// 2. Rebuild tests: include max length, interim sum ... everything; measure coverage
-// 3. Revise documentation
+// 2. Rebuild tests: include max length, interim sum ... everything; measure coverage -> 100%
+// 3. Revise documentation, make an asciidocstub/makefile
+
+// Argghhh: GoDoc does not detected exported methods of un-exported structs? #528
+//          https://github.com/golang/gddo/issues/528
 
 // Hasher interface
 type Hasher interface {
-	init(hashAlgorithm HashAlgorithm) Hasher
-	Write(message []byte) Hasher
+	Copy() Hasher
+	HashAlgorithm() HashAlgorithm
+	InterimSum() interface{}
 	Sum() interface{}
+	Write(message []byte) Hasher
 }
 
-// HashAlgorithm is unique type that will be enumerated
+// HashAlgorithm is a unique type that will be enumerated
 type HashAlgorithm uint32
 
 // Enumerated constant for each hasher256 algorithm
@@ -39,9 +42,11 @@ const (
 	Sha512t256 HashAlgorithm = iota
 )
 
-// New constructs a fresh instance. The HashAlgorithm algorithm can be specified here or deferred to init().
-func New(hashAlgorithm HashAlgorithm) interface{ Hasher } {
+// LogFatal can be overridden to prevent fatal exits (e.g. for testing)
+var LogFatal = log.Fatal
 
+// New constructs a fresh instance of the specified HashAlgorithm
+func New(hashAlgorithm HashAlgorithm) interface{ Hasher } {
 	switch hashAlgorithm {
 	case Sha224:
 		return new(sha224).init(Sha224)
@@ -56,69 +61,20 @@ func New(hashAlgorithm HashAlgorithm) interface{ Hasher } {
 	case Sha512t256:
 		return new(sha512t256).init(Sha512t256)
 	default:
-		log.Fatal("Unknown (or None) hashAlgorithm")
+		LogFatal("Unknown (or None) hashAlgorithm")
 	}
 	return nil
 }
 
-func Algorithm(src Hasher) HashAlgorithm {
-	switch reflect.TypeOf(src) {
-	case reflect.TypeOf(&sha224{}):
-		return Sha224
-	case reflect.TypeOf(&sha256{}):
-		return Sha256
-	case reflect.TypeOf(&sha384{}):
-		return Sha384
-	case reflect.TypeOf(&sha512{}):
-		return Sha512
-	case reflect.TypeOf(&sha512t224{}):
-		return Sha512t224
-	case reflect.TypeOf(&sha512t256{}):
-		return Sha512t256
-	default:
-		log.Fatal("Passed bad source Hasher")
-	}
-	return None
-}
-
-func Copy(src Hasher) (Hasher, error) {
-	var dst Hasher
-	switch Algorithm(src) {
-	case Sha224:
-		dst = New(Sha224)
-	case Sha256:
-		dst = New(Sha256)
-	case Sha384:
-		dst = New(Sha384)
-	case Sha512:
-		dst = New(Sha512)
-	case Sha512t224:
-		dst = New(Sha512t224)
-	case Sha512t256:
-		dst = New(Sha512t256)
-	default:
-		log.Fatal("Passed bad source Hasher")
-	}
-
-	// Marshall source
+// hasherCopy deep copy via marshall the src then unmarshall into dst (independent of HashAlgorithm)
+func hasherCopy(dst Hasher, src Hasher) Hasher {
 	originalData, err := json.Marshal(&src)
 	if err != nil {
-		return nil, err
+		LogFatal("hasherCopy() unable to serialize source")
 	}
-
-	// Unmarshall it back into dst
 	err = json.Unmarshal(originalData, &dst)
 	if err != nil {
-		return nil, err
+		LogFatal("hasherCopy() unable to deserialize destimation")
 	}
-	return dst, nil
-}
-
-func InterimSum(src Hasher) interface{} {
-	var dst Hasher
-	dst, err := Copy(src)
-	if err != nil {
-		log.Fatal("Passed bad source Hasher")
-	}
-	return dst.Sum()
+	return dst
 }

@@ -2,10 +2,10 @@ package hasher
 
 import (
 	"encoding/binary"
-	"log"
 	"math/bits"
 )
 
+// Structure for hash256 based algorithms
 type hasher256 struct {
 	FillLine     int        `json:"fillLine"`
 	Finished     bool       `json:"finished"`
@@ -14,10 +14,12 @@ type hasher256 struct {
 	TempBlock256 *[64]byte  `json:"tempBlock256"`
 }
 
+// Structure personalized for sha224
 type sha224 struct {
 	hasher256 `json:"hasher224"`
 }
 
+// Structure personalized for sha256
 type sha256 struct {
 	hasher256 `json:"hasher256"`
 }
@@ -38,34 +40,37 @@ var sha256Constants = [64]uint32{
 	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 }
 
-func (hasher *sha224) init(hashAlgorithm HashAlgorithm) Hasher {
-	hasher.LenProcessed = 0
-	hasher.TempBlock256 = &[64]byte{0}
-	hasher.HashBlock256 = &[8]uint32{ // The specific/unique initial conditions for SHA-224 H[0:7]
-		0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4,
-	}
-	return hasher
+// Copy returns a deep copy
+func (hasher *sha224) Copy() Hasher {
+	return hasherCopy(New(Sha224), hasher)
 }
 
-func (hasher *sha256) init(hashAlgorithm HashAlgorithm) Hasher {
-	hasher.LenProcessed = 0
-	hasher.TempBlock256 = &[64]byte{0}
-	hasher.HashBlock256 = &[8]uint32{ // The specific/unique initial conditions for SHA-256 H[0:7]
-		0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
-	}
-	return hasher
+// Copy returns a deep copy
+func (hasher *sha256) Copy() Hasher {
+	return hasherCopy(New(Sha256), hasher)
 }
 
-func (hasher *sha224) Write(message []byte) Hasher {
-	write256(&hasher.hasher256, message)
-	return hasher
+// HashAlgorithm returns the hash algorithm of the "object"
+func (hasher *sha224) HashAlgorithm() HashAlgorithm {
+	return Sha224
 }
 
-func (hasher *sha256) Write(message []byte) Hasher {
-	write256(&hasher.hasher256, message)
-	return hasher
+// HashAlgorithm returns the hash algorithm of the "object"
+func (hasher *sha256) HashAlgorithm() HashAlgorithm {
+	return Sha256
 }
 
+// InterimSum returns "the sum so far" without finalizing the original hasher
+func (hasher sha224) InterimSum() interface{} {
+	return hasher.Copy().Sum()
+}
+
+// InterimSum returns "the sum so far" without finalizing the original hasher
+func (hasher sha256) InterimSum() interface{} {
+	return hasher.Copy().Sum()
+}
+
+// Sum returns the final sum and marks the hasher as finished to prevent additional writes
 func (hasher *sha224) Sum() interface{} {
 	if !hasher.Finished {
 		finalize256(&hasher.hasher256)
@@ -78,6 +83,7 @@ func (hasher *sha224) Sum() interface{} {
 	return digest
 }
 
+// Sum returns the final sum and marks the hasher as finished to prevent additional writes
 func (hasher *sha256) Sum() interface{} {
 	if !hasher.Finished {
 		finalize256(&hasher.hasher256)
@@ -90,12 +96,45 @@ func (hasher *sha256) Sum() interface{} {
 	return digest
 }
 
+// Write pushes additional data into the hasher; can be called multiple times in streaming applications
+func (hasher *sha224) Write(message []byte) Hasher {
+	write256(&hasher.hasher256, message)
+	return hasher
+}
+
+// Write pushes additional data into the hasher; can be called multiple times in streaming applications
+func (hasher *sha256) Write(message []byte) Hasher {
+	write256(&hasher.hasher256, message)
+	return hasher
+}
+
+// init creates an initialized structure specific to the algorithm in play
+func (hasher *sha224) init(hashAlgorithm HashAlgorithm) Hasher {
+	hasher.LenProcessed = 0
+	hasher.TempBlock256 = &[64]byte{0}
+	hasher.HashBlock256 = &[8]uint32{ // The specific/unique initial conditions for SHA-224 H[0:7]
+		0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4,
+	}
+	return hasher
+}
+
+// init creates an initialized structure specific to the algorithm in play
+func (hasher *sha256) init(hashAlgorithm HashAlgorithm) Hasher {
+	hasher.LenProcessed = 0
+	hasher.TempBlock256 = &[64]byte{0}
+	hasher.HashBlock256 = &[8]uint32{ // The specific/unique initial conditions for SHA-256 H[0:7]
+		0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+	}
+	return hasher
+}
+
+// write256 does the real work of message ingestion
 func write256(hasher *hasher256, message []byte) {
 	if hasher.Finished {
-		log.Fatal("Cannot call Write() after Sum() because hasher is finished")
+		LogFatal("Cannot call Write() after Sum() because the hasher has been finalized")
 	}
 	if hasher.LenProcessed+uint64(len(message)) < hasher.LenProcessed {
-		log.Fatal("Total message length of 2**64 has been exceeded")
+		LogFatal("Total message length of 2**64 has been exceeded")
 	}
 
 	// If message fits into non-empty tempBlock without filling it: append, adjust status and finish
@@ -131,6 +170,7 @@ func write256(hasher *hasher256, message []byte) {
 	}
 }
 
+// finalize256 finishes the calculation by padding, marking length, and hashing final block(s)
 func finalize256(hasher *hasher256) {
 	// Finalize by hashing last block if padding will fit
 	if hasher.FillLine < mAXBYTESINBLOCK256 {
@@ -153,6 +193,7 @@ func finalize256(hasher *hasher256) {
 	fillBlock256(hasher)
 }
 
+// fillBlock256 sets the message-end marker and zeros the remainder
 func fillBlock256(hasher *hasher256) {
 	hasher.TempBlock256[hasher.FillLine] = 128 // Set MSB
 	for index := hasher.FillLine + 1; index < bYTESINBLOCK256; index++ {
@@ -160,11 +201,13 @@ func fillBlock256(hasher *hasher256) {
 	}
 }
 
+// tagLength256 put the length field into the message end
 func tagLength256(hasher *hasher256) {
 	hasher.LenProcessed *= 8
 	binary.BigEndian.PutUint64(hasher.TempBlock256[mAXBYTESINBLOCK256:bYTESINBLOCK256], hasher.LenProcessed)
 }
 
+// lastBlock256 nearly done!
 func lastBlock256(hasher *hasher256) {
 	fillBlock256(hasher)
 	tagLength256(hasher)
@@ -174,11 +217,8 @@ func lastBlock256(hasher *hasher256) {
 // Message schedule (faster out here)
 var w256 [64]uint32
 
+// oneBlock256 does one full hash block iteration
 func oneBlock256(hasher *hasher256, message []byte) {
-	if len(message) != bYTESINBLOCK256 {
-		log.Fatal("eightBlocks256 got an odd sized block.")
-	}
-
 	// First 16 w256 are straightforward
 	for i := 0; i < 16; i++ {
 		j := i * 4

@@ -2,10 +2,10 @@ package hasher
 
 import (
 	"encoding/binary"
-	"log"
 	"math/bits"
 )
 
+// Structure for hash256 based algorithms
 type hasher512 struct {
 	FillLine     int        `json:"fillLine"`
 	Finished     bool       `json:"finished"`
@@ -14,18 +14,22 @@ type hasher512 struct {
 	TempBlock512 *[128]byte `json:"tempBlock512"`
 }
 
+// Structure personalized for sha384
 type sha384 struct {
 	hasher512 `json:"hasher384"`
 }
 
+// Structure personalized for sha512
 type sha512 struct {
 	hasher512 `json:"hasher512"`
 }
 
+// Structure personalized for sha512t224
 type sha512t224 struct {
 	hasher512 `json:"hasher512t224"`
 }
 
+// Structure personalized for sha512t256
 type sha512t256 struct {
 	hasher512 `json:"hasher512t256"`
 }
@@ -54,66 +58,69 @@ var sha512Constants = &[80]uint64{
 	0x431d67c49c100d4c, 0x4cc5d4becb3e42b6, 0x597f299cfc657e2a, 0x5fcb6fab3ad6faec, 0x6c44198c4a475817,
 }
 
-func (hasher *sha384) init(hashAlgorithm HashAlgorithm) Hasher {
-	hasher.LenProcessed = 0
-	hasher.TempBlock512 = &[128]byte{0}
-	hasher.HashBlock512 = &[8]uint64{ // The specific/unique initial conditions for SHA-384 H[0:7]
-		0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17, 0x152fecd8f70e5939,
-		0x67332667ffc00b31, 0x8eb44a8768581511, 0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4,
-	}
-	return hasher
+// Copy returns a deep copy
+func (hasher *sha384) Copy() Hasher {
+	return hasherCopy(New(Sha384), hasher)
 }
 
-func (hasher *sha512) init(hashAlgorithm HashAlgorithm) Hasher {
-	hasher.LenProcessed = 0
-	hasher.TempBlock512 = &[128]byte{0}
-	hasher.HashBlock512 = &[8]uint64{ // The specific/unique initial conditions for SHA-512 H[0:7]
-		0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
-		0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179,
-	}
-	return hasher
+// Copy returns a deep copy
+func (hasher *sha512) Copy() Hasher {
+	return hasherCopy(New(Sha512), hasher)
 }
 
-func (hasher *sha512t224) init(hashAlgorithm HashAlgorithm) Hasher {
-	hasher.LenProcessed = 0
-	hasher.TempBlock512 = &[128]byte{0}
-	hasher.HashBlock512 = &[8]uint64{ // The specific/unique initial conditions for SHA-512t224 H[0:7]
-		0x8C3D37C819544DA2, 0x73E1996689DCD4D6, 0x1DFAB7AE32FF9C82, 0x679DD514582F9FCF,
-		0x0F6D2B697BD44DA8, 0x77E36F7304C48942, 0x3F9D85A86A1D36C8, 0x1112E6AD91D692A1,
-	}
-	return hasher
+// Copy returns a deep copy
+func (hasher *sha512t224) Copy() Hasher {
+	return hasherCopy(New(Sha512t224), hasher)
 }
 
-func (hasher *sha512t256) init(hashAlgorithm HashAlgorithm) Hasher {
-	hasher.LenProcessed = 0
-	hasher.TempBlock512 = &[128]byte{0}
-	hasher.HashBlock512 = &[8]uint64{ // The specific/unique initial conditions for SHA-512t256 H[0:7]
-		0x22312194FC2BF72C, 0x9F555FA3C84C64C2, 0x2393B86B6F53B151, 0x963877195940EABD,
-		0x96283EE2A88EFFE3, 0xBE5E1E2553863992, 0x2B0199FC2C85B8AA, 0x0EB72DDC81C52CA2,
-	}
-	return hasher
+// Copy returns a deep copy
+func (hasher *sha512t256) Copy() Hasher {
+	return hasherCopy(New(Sha512t256), hasher)
 }
 
-func (hasher *sha384) Write(message []byte) Hasher {
-	write512(&hasher.hasher512, message)
-	return hasher
+// HashAlgorithm returns the hash algorithm of the "object"
+func (hasher *sha384) HashAlgorithm() HashAlgorithm {
+	return Sha384
 }
 
-func (hasher *sha512) Write(message []byte) Hasher {
-	write512(&hasher.hasher512, message)
-	return hasher
+// HashAlgorithm returns the hash algorithm of the "object"
+func (hasher *sha512) HashAlgorithm() HashAlgorithm {
+	return Sha512
 }
 
-func (hasher *sha512t224) Write(message []byte) Hasher {
-	write512(&hasher.hasher512, message)
-	return hasher
+// HashAlgorithm returns the hash algorithm of the "object"
+func (hasher *sha512t224) HashAlgorithm() HashAlgorithm {
+	return Sha512t224
 }
 
-func (hasher *sha512t256) Write(message []byte) Hasher {
-	write512(&hasher.hasher512, message)
-	return hasher
+// HashAlgorithm returns the hash algorithm of the "object"
+func (hasher *sha512t256) HashAlgorithm() HashAlgorithm {
+	return Sha512t256
 }
 
+// InterimSum returns "the sum so far" without finalizing the original hasher
+func (hasher sha384) InterimSum() interface{} {
+	return hasher.Copy().Sum()
+
+}
+
+// InterimSum returns "the sum so far" without finalizing the original hasher
+func (hasher sha512) InterimSum() interface{} {
+	return hasher.Copy().Sum()
+
+}
+
+// InterimSum returns "the sum so far" without finalizing the original hasher
+func (hasher sha512t224) InterimSum() interface{} {
+	return hasher.Copy().Sum()
+}
+
+// InterimSum returns "the sum so far" without finalizing the original hasher
+func (hasher sha512t256) InterimSum() interface{} {
+	return hasher.Copy().Sum()
+}
+
+// Sum returns the final sum and marks the hasher as finished to prevent additional writes
 func (hasher *sha384) Sum() interface{} {
 	if !hasher.Finished {
 		finalize512(&hasher.hasher512)
@@ -126,6 +133,7 @@ func (hasher *sha384) Sum() interface{} {
 	return digest
 }
 
+// Sum returns the final sum and marks the hasher as finished to prevent additional writes
 func (hasher *sha512) Sum() interface{} {
 	if !hasher.Finished {
 		finalize512(&hasher.hasher512)
@@ -138,6 +146,7 @@ func (hasher *sha512) Sum() interface{} {
 	return digest
 }
 
+// Sum returns the final sum and marks the hasher as finished to prevent additional writes
 func (hasher *sha512t224) Sum() interface{} {
 	if !hasher.Finished {
 		finalize512(&hasher.hasher512)
@@ -151,6 +160,7 @@ func (hasher *sha512t224) Sum() interface{} {
 	return digest
 }
 
+// Sum returns the final sum and marks the hasher as finished to prevent additional writes
 func (hasher *sha512t256) Sum() interface{} {
 	if !hasher.Finished {
 		finalize512(&hasher.hasher512)
@@ -163,12 +173,81 @@ func (hasher *sha512t256) Sum() interface{} {
 	return digest
 }
 
+// Write pushes additional data into the hasher; can be called multiple times in streaming applications
+func (hasher *sha384) Write(message []byte) Hasher {
+	write512(&hasher.hasher512, message)
+	return hasher
+}
+
+// Write pushes additional data into the hasher; can be called multiple times in streaming applications
+func (hasher *sha512) Write(message []byte) Hasher {
+	write512(&hasher.hasher512, message)
+	return hasher
+}
+
+// Write pushes additional data into the hasher; can be called multiple times in streaming applications
+func (hasher *sha512t224) Write(message []byte) Hasher {
+	write512(&hasher.hasher512, message)
+	return hasher
+}
+
+// Write pushes additional data into the hasher; can be called multiple times in streaming applications
+func (hasher *sha512t256) Write(message []byte) Hasher {
+	write512(&hasher.hasher512, message)
+	return hasher
+}
+
+// init creates an initialized structure specific to the algorithm in play
+func (hasher *sha384) init(hashAlgorithm HashAlgorithm) Hasher {
+	hasher.LenProcessed = 0
+	hasher.TempBlock512 = &[128]byte{0}
+	hasher.HashBlock512 = &[8]uint64{ // The specific/unique initial conditions for SHA-384 H[0:7]
+		0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17, 0x152fecd8f70e5939,
+		0x67332667ffc00b31, 0x8eb44a8768581511, 0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4,
+	}
+	return hasher
+}
+
+// init creates an initialized structure specific to the algorithm in play
+func (hasher *sha512) init(hashAlgorithm HashAlgorithm) Hasher {
+	hasher.LenProcessed = 0
+	hasher.TempBlock512 = &[128]byte{0}
+	hasher.HashBlock512 = &[8]uint64{ // The specific/unique initial conditions for SHA-512 H[0:7]
+		0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
+		0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179,
+	}
+	return hasher
+}
+
+// init creates an initialized structure specific to the algorithm in play
+func (hasher *sha512t224) init(hashAlgorithm HashAlgorithm) Hasher {
+	hasher.LenProcessed = 0
+	hasher.TempBlock512 = &[128]byte{0}
+	hasher.HashBlock512 = &[8]uint64{ // The specific/unique initial conditions for SHA-512t224 H[0:7]
+		0x8C3D37C819544DA2, 0x73E1996689DCD4D6, 0x1DFAB7AE32FF9C82, 0x679DD514582F9FCF,
+		0x0F6D2B697BD44DA8, 0x77E36F7304C48942, 0x3F9D85A86A1D36C8, 0x1112E6AD91D692A1,
+	}
+	return hasher
+}
+
+// init creates an initialized structure specific to the algorithm in play
+func (hasher *sha512t256) init(hashAlgorithm HashAlgorithm) Hasher {
+	hasher.LenProcessed = 0
+	hasher.TempBlock512 = &[128]byte{0}
+	hasher.HashBlock512 = &[8]uint64{ // The specific/unique initial conditions for SHA-512t256 H[0:7]
+		0x22312194FC2BF72C, 0x9F555FA3C84C64C2, 0x2393B86B6F53B151, 0x963877195940EABD,
+		0x96283EE2A88EFFE3, 0xBE5E1E2553863992, 0x2B0199FC2C85B8AA, 0x0EB72DDC81C52CA2,
+	}
+	return hasher
+}
+
+// write512 does the real work of message ingestion
 func write512(hasher *hasher512, message []byte) {
 	if hasher.Finished {
-		log.Fatal("Cannot call Write() after Sum() because hasher is finished")
+		LogFatal("Cannot call Write() after Sum() because hasher has been finalized")
 	}
 	if hasher.LenProcessed+uint64(len(message)) < hasher.LenProcessed {
-		log.Fatal("Total message length of 2**64 has been exceeded")
+		LogFatal("Total message length of 2**64 has been exceeded")
 	}
 
 	// If message fits into non-empty tempBlock without filling it: append, adjust status and finish
@@ -205,6 +284,7 @@ func write512(hasher *hasher512, message []byte) {
 	}
 }
 
+// finalize512 finishes the calculation by padding, marking length, and hashing final block(s)
 func finalize512(hasher *hasher512) {
 	// Finalize by hashing last block if padding will fit
 	if hasher.FillLine < mAXBYTESINBLOCK512 {
@@ -227,7 +307,7 @@ func finalize512(hasher *hasher512) {
 	fillBlock512(hasher)
 }
 
-// Mark the end of data and fill remainder with zeros; only for tempBlocks
+// fillBlock512 sets the message-end marker and zeros the remainder
 func fillBlock512(hasher *hasher512) {
 	hasher.TempBlock512[hasher.FillLine] = 128 // Set MSB
 	for index := hasher.FillLine + 1; index < bYTESINBLOCK512; index++ {
@@ -235,13 +315,13 @@ func fillBlock512(hasher *hasher512) {
 	}
 }
 
-// Insert message length tag at the end; only for tempBlocks
+// tagLength512 put the length field into the message end
 func tagLength512(hasher *hasher512) {
 	hasher.LenProcessed *= 8
 	binary.BigEndian.PutUint64(hasher.TempBlock512[mAXBYTESINBLOCK512+8:bYTESINBLOCK512], hasher.LenProcessed)
 }
 
-// Hash the very last block; only for tempBlocks
+// lastBlock512 nearly done!
 func lastBlock512(hasher *hasher512) {
 	fillBlock512(hasher)
 	tagLength512(hasher)
@@ -251,11 +331,8 @@ func lastBlock512(hasher *hasher512) {
 // Message schedule (faster out here)
 var w512 [80]uint64
 
+// oneBlock256 does one full hash block iteration
 func oneBlock512(hasher *hasher512, message []byte) {
-	if len(message) != bYTESINBLOCK512 {
-		log.Fatal("oneBlock512 got an odd sized block.")
-	}
-
 	// First 16 w512 are straightforward
 	for i := 0; i < 16; i++ {
 		j := i * 8
