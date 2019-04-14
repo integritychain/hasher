@@ -9,25 +9,18 @@ package hasher
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"reflect"
 )
 
 // TODO
-// 1. Find out if new can work; find out if shared Init can work; otherwise move on!!
-// 2. Fix then test maxLength logic
-//X3. Implement Marshall, Unmarshall; What is this json stuff in a struct, codec???
-//X4. Implement Thomas' interim calculate function; can we simply copy the hasher and Sum the copy?
-// 5. Clean up code further; everything in sha256 should perfectly match sha512
-// 6. Fresh look at test strategy; build each small bit, then fuzz everything; also documentation
-// 7. Review documentation
-// 8. Profiling --> uint64 on sha256!
+// 1. Consider whether Algorithm(), Copy() and InterimSum() should be bound to each type
+// 2. Rebuild tests: include max length, interim sum ... everything; measure coverage
+// 3. Revise documentation
 
 // Hasher interface
 type Hasher interface {
-	Init(hashAlgorithm HashAlgorithm) Hasher
-	HashAlgorithm() HashAlgorithm
+	init(hashAlgorithm HashAlgorithm) Hasher
 	Write(message []byte) Hasher
 	Sum() interface{}
 }
@@ -46,45 +39,51 @@ const (
 	Sha512t256 HashAlgorithm = iota
 )
 
-// New constructs a fresh instance. The HashAlgorithm algorithm can be specified here or deferred to Init().
+// New constructs a fresh instance. The HashAlgorithm algorithm can be specified here or deferred to init().
 func New(hashAlgorithm HashAlgorithm) interface{ Hasher } {
 
 	switch hashAlgorithm {
 	case Sha224:
-		return new(sha224).Init(Sha224)
+		return new(sha224).init(Sha224)
 	case Sha256:
-		return new(sha256).Init(Sha256)
+		return new(sha256).init(Sha256)
 	case Sha384:
-		return new(sha384).Init(Sha384)
+		return new(sha384).init(Sha384)
 	case Sha512:
-		return new(sha512).Init(Sha512)
+		return new(sha512).init(Sha512)
 	case Sha512t224:
-		return new(sha512t224).Init(Sha512t224)
+		return new(sha512t224).init(Sha512t224)
 	case Sha512t256:
-		return new(sha512t256).Init(Sha512t256)
+		return new(sha512t256).init(Sha512t256)
 	default:
 		log.Fatal("Unknown (or None) hashAlgorithm")
 	}
 	return nil
 }
 
-func HashAlgorithm2(src Hasher) HashAlgorithm {
-	if reflect.TypeOf(src) == reflect.TypeOf(&sha224{}) {
-		return Sha224
-	}
+func Algorithm(src Hasher) HashAlgorithm {
 	switch reflect.TypeOf(src) {
 	case reflect.TypeOf(&sha224{}):
 		return Sha224
+	case reflect.TypeOf(&sha256{}):
+		return Sha256
+	case reflect.TypeOf(&sha384{}):
+		return Sha384
+	case reflect.TypeOf(&sha512{}):
+		return Sha512
+	case reflect.TypeOf(&sha512t224{}):
+		return Sha512t224
+	case reflect.TypeOf(&sha512t256{}):
+		return Sha512t256
+	default:
+		log.Fatal("Passed bad source Hasher")
 	}
-	sType := reflect.TypeOf(src)
-	dType := reflect.TypeOf(&sha224{})
-	fmt.Printf("%v\n%v", sType, dType)
 	return None
 }
 
 func Copy(src Hasher) (Hasher, error) {
 	var dst Hasher
-	switch HashAlgorithm2(src) {
+	switch Algorithm(src) {
 	case Sha224:
 		dst = New(Sha224)
 	case Sha256:
@@ -101,13 +100,25 @@ func Copy(src Hasher) (Hasher, error) {
 		log.Fatal("Passed bad source Hasher")
 	}
 
+	// Marshall source
 	originalData, err := json.Marshal(&src)
 	if err != nil {
 		return nil, err
 	}
+
+	// Unmarshall it back into dst
 	err = json.Unmarshal(originalData, &dst)
 	if err != nil {
 		return nil, err
 	}
 	return dst, nil
+}
+
+func InterimSum(src Hasher) interface{} {
+	var dst Hasher
+	dst, err := Copy(src)
+	if err != nil {
+		log.Fatal("Passed bad source Hasher")
+	}
+	return dst.Sum()
 }
