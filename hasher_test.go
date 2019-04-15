@@ -3,16 +3,13 @@ package hasher_test
 import (
 	"crypto/sha256"
 	"crypto/sha512"
-	"encoding/json"
 	"fmt"
 	. "hasher"
 	"math/rand" // Repeatable is good
+	"reflect"
 	"runtime/debug"
 	"testing"
 )
-
-// Instance is used for non-example tests (for clarity; note Hasher interface)
-var instance Hasher
 
 func assertEquals(t *testing.T, expected interface{}, actual interface{}, message interface{}) {
 	if expected != actual {
@@ -21,390 +18,541 @@ func assertEquals(t *testing.T, expected interface{}, actual interface{}, messag
 	}
 }
 
-func ExampleHashAlgorithm2() {
-	var instance Hasher
-	instance = New(Sha224).Write([]byte("a message"))
-	x := instance.HashAlgorithm()
-	fmt.Println(x)
-	// Output: 1
+//
+// Documentation examples
+//
+
+func ExampleNew() {
+	var instance1 = New(Sha224)
+	var instance2 = New(Sha256)
+	var instance3 = New(Sha384)
+	var instance4 = New(Sha512)
+	var instance5 = New(Sha512t224)
+	var instance6 = New(Sha512t256)
+	fmt.Printf("Types are %v %v %v %v %v %v", reflect.TypeOf(instance1), reflect.TypeOf(instance2),
+		reflect.TypeOf(instance3), reflect.TypeOf(instance4), reflect.TypeOf(instance5),
+		reflect.TypeOf(instance6))
+	// Output: Types are *hasher.sha224 *hasher.sha256 *hasher.sha384 *hasher.sha512 *hasher.sha512t224 *hasher.sha512t256
 }
 
-func ExampleJsonMarshal() {
-	var instance Hasher
-
-	instance = New(Sha224).Write([]byte("a message"))
-	iString, _ := json.Marshal(&instance)
-	fmt.Println(string(iString))
-
-	instance = New(Sha256).Write([]byte("a message"))
-	iString, _ = json.Marshal(&instance)
-	fmt.Println(string(iString))
-
-	instance = New(Sha384).Write([]byte("a message"))
-	iString, _ = json.Marshal(&instance)
-	fmt.Println(string(iString))
-
-	instance = New(Sha512).Write([]byte("a message"))
-	iString, _ = json.Marshal(&instance)
-	fmt.Println(string(iString))
-
-	instance = New(Sha512t224).Write([]byte("a message"))
-	iString, _ = json.Marshal(&instance)
-	fmt.Println(string(iString))
-
-	instance = New(Sha512t256).Write([]byte("a message"))
-	iString, _ = json.Marshal(&instance)
-	fmt.Println(string(iString))
-
-	// Output: {"hasher224":{"fillLine":9,"finished":false,"hashBlock256":[3238371032,914150663,812702999,4144912697,4290775857,1750603025,1694076839,3204075428],"lenProcessed":9,"tempBlock256":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
-	// {"hasher256":{"fillLine":9,"finished":false,"hashBlock256":[1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225],"lenProcessed":9,"tempBlock256":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
-	// {"hasher384":{"fillLine":9,"finished":false,"hashBlock512":[14680500436340154072,7105036623409894663,10473403895298186519,1526699215303891257,7436329637833083697,10282925794625328401,15784041429090275239,5167115440072839076],"lenProcessed":9,"tempBlock512":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
-	// {"hasher512":{"fillLine":9,"finished":false,"hashBlock512":[7640891576956012808,13503953896175478587,4354685564936845355,11912009170470909681,5840696475078001361,11170449401992604703,2270897969802886507,6620516959819538809],"lenProcessed":9,"tempBlock512":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
-	// {"hasher512t224":{"fillLine":9,"finished":false,"hashBlock512":[10105294471447203234,8350123849800275158,2160240930085379202,7466358040605728719,1111592415079452072,8638871050018654530,4583966954114332360,1230299281376055969],"lenProcessed":9,"tempBlock512":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
-	// {"hasher512t256":{"fillLine":9,"finished":false,"hashBlock512":[2463787394917988140,11481187982095705282,2563595384472711505,10824532655140301501,10819967247969091555,13717434660681038226,3098927326965381290,1060366662362279074],"lenProcessed":9,"tempBlock512":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+func ExampleSha224_Copy() {
+	var instance1 = New(Sha224).
+		Write([]byte("Message goes here"))
+	var instance2 = instance1.Copy()
+	fmt.Printf("The sum for instance1 == instance2: %v", instance1.Sum() == instance2.Sum())
+	// Output: The sum for instance1 == instance2: true
 }
 
-func ExampleJsonUnmarshal() {
+func ExampleSha256_Copy() {
+	var instance1 = New(Sha256).
+		Write([]byte("Message goes here"))
+	var instance2 = instance1.Copy()
+	fmt.Printf("The sum for instance1 == instance2: %v", instance1.Sum() == instance2.Sum())
+	// Output: The sum for instance1 == instance2: true
+}
 
-	var originalInstance, newInstance Hasher
+func ExampleSha384_Copy() {
+	var instance1 = New(Sha384).
+		Write([]byte("Message goes here"))
+	var instance2 = instance1.Copy()
+	fmt.Printf("The sum for instance1 == instance2: %v", instance1.Sum() == instance2.Sum())
+	// Output: The sum for instance1 == instance2: true
+}
 
-	originalInstance = New(Sha224).Write([]byte("a message"))
-	originalData, _ := json.Marshal(&originalInstance)
+func ExampleSha512_Copy() {
+	var instance1 = New(Sha512).
+		Write([]byte("Message goes here"))
+	var instance2 = instance1.Copy()
+	fmt.Printf("The sum for instance1 == instance2: %v", instance1.Sum() == instance2.Sum())
+	// Output: The sum for instance1 == instance2: true
+}
 
-	newInstance = New(Sha224)
-	_ = json.Unmarshal(originalData, &newInstance)
-	newData, _ := json.Marshal(&newInstance)
+func ExampleSha512t224_Copy() {
+	var instance1 = New(Sha512t224).
+		Write([]byte("Message goes here"))
+	var instance2 = instance1.Copy()
+	fmt.Printf("The sum for instance1 == instance2: %v", instance1.Sum() == instance2.Sum())
+	// Output: The sum for instance1 == instance2: true
+}
 
-	fmt.Printf("%v\n%v", string(originalData), string(newData))
-	// Output: {"hasher224":{"fillLine":9,"finished":false,"hashBlock256":[3238371032,914150663,812702999,4144912697,4290775857,1750603025,1694076839,3204075428],"lenProcessed":9,"tempBlock256":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
-	// {"hasher224":{"fillLine":9,"finished":false,"hashBlock256":[3238371032,914150663,812702999,4144912697,4290775857,1750603025,1694076839,3204075428],"lenProcessed":9,"tempBlock256":[97,32,109,101,115,115,97,103,101,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}
+func ExampleSha512t256_Copy() {
+	var instance1 = New(Sha512t256).
+		Write([]byte("Message goes here"))
+	var instance2 = instance1.Copy()
+	fmt.Printf("The sum for instance1 == instance2: %v", instance1.Sum() == instance2.Sum())
+	// Output: The sum for instance1 == instance2: true
+}
+
+func ExampleSha224_HashAlgorithm() {
+	var instance = New(Sha224)
+	fmt.Printf("Hash algorithm is (enumerated): %v", instance.HashAlgorithm())
+	// Output: Hash algorithm is (enumerated): 1
+}
+
+func ExampleSha256_HashAlgorithm() {
+	var instance = New(Sha256)
+	fmt.Printf("Hash algorithm is (enumerated): %v", instance.HashAlgorithm())
+	// Output: Hash algorithm is (enumerated): 2
+}
+
+func ExampleSha384_HashAlgorithm() {
+	var instance = New(Sha384)
+	fmt.Printf("Hash algorithm is (enumerated): %v", instance.HashAlgorithm())
+	// Output: Hash algorithm is (enumerated): 3
+}
+
+func ExampleSha512_HashAlgorithm() {
+	var instance = New(Sha512)
+	fmt.Printf("Hash algorithm is (enumerated): %v", instance.HashAlgorithm())
+	// Output: Hash algorithm is (enumerated): 4
+}
+
+func ExampleSha512t224_HashAlgorithm() {
+	var instance = New(Sha512t224)
+	fmt.Printf("Hash algorithm is (enumerated): %v", instance.HashAlgorithm())
+	// Output: Hash algorithm is (enumerated): 5
+}
+
+func ExampleSha512t256_HashAlgorithm() {
+	var instance = New(Sha512t256)
+	fmt.Printf("Hash algorithm is (enumerated): %v", instance.HashAlgorithm())
+	// Output: Hash algorithm is (enumerated): 6
 }
 
 func ExampleSha224_InterimSum() {
-	// Improve this to show moving on...
-	var instance Hasher
-	instance = New(Sha256).Write([]byte("a message"))
-	originalData, _ := json.Marshal(&instance)
-	var newInstance = New(Sha256)
-	_ = json.Unmarshal(originalData, &newInstance)
-	fmt.Printf("%v\n%v", instance.Sum(), newInstance.Sum())
-	// Output: [245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
-	//[245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
+	var instance1 = New(Sha224).Write([]byte("Message goes here"))    // This one will be finalized
+	var instance2 = New(Sha224).Write([]byte("Message goes here"))    // This one will have two segments
+	fmt.Printf("Sum for instance1 == InterimSum for instance2: %v\n", // Sum/Interim should equal
+		instance1.Sum() == instance2.InterimSum())
+	instance2.Write([]byte(" - and another message segment here")) // Add another segment, then whole
+	var instance3 = New(Sha224).Write([]byte("Message goes here - and another message segment here"))
+	fmt.Printf("Final Sum for instance2 == Sum for instance3: %v", // Compare fragment vs whole
+		instance2.Sum() == instance3.InterimSum())
+	// Output: Sum for instance1 == InterimSum for instance2: true
+	// Final Sum for instance2 == Sum for instance3: true
 }
 
-func Example_InterimSum() {
-
-	// Improve this to show moving on...
-	var instance Hasher
-	instance = New(Sha256).Write([]byte("a message"))
-	originalData, _ := json.Marshal(&instance)
-	var newInstance = New(Sha256)
-	_ = json.Unmarshal(originalData, &newInstance)
-	fmt.Printf("%v\n%v", instance.Sum(), newInstance.Sum())
-	// Output: [245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
-	//[245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
-
+func ExampleSha256_InterimSum() {
+	var instance1 = New(Sha256).Write([]byte("Message goes here"))    // This one will be finalized
+	var instance2 = New(Sha256).Write([]byte("Message goes here"))    // This one will have two segments
+	fmt.Printf("Sum for instance1 == InterimSum for instance2: %v\n", // Sum/Interim should equal
+		instance1.Sum() == instance2.InterimSum())
+	instance2.Write([]byte(" - and another message segment here")) // Add another segment, then whole
+	var instance3 = New(Sha256).Write([]byte("Message goes here - and another message segment here"))
+	fmt.Printf("Final Sum for instance2 == Sum for instance3: %v", // Compare fragment vs whole
+		instance2.Sum() == instance3.InterimSum())
+	// Output: Sum for instance1 == InterimSum for instance2: true
+	// Final Sum for instance2 == Sum for instance3: true
 }
 
-/*
-Examples for documentation
-*/
+func ExampleSha384_InterimSum() {
+	var instance1 = New(Sha384).Write([]byte("Message goes here"))    // This one will be finalized
+	var instance2 = New(Sha384).Write([]byte("Message goes here"))    // This one will have two segments
+	fmt.Printf("Sum for instance1 == InterimSum for instance2: %v\n", // Sum/Interim should equal
+		instance1.Sum() == instance2.InterimSum())
+	instance2.Write([]byte(" - and another message segment here")) // Add another segment, then whole
+	var instance3 = New(Sha384).Write([]byte("Message goes here - and another message segment here"))
+	fmt.Printf("Final Sum for instance2 == Sum for instance3: %v", // Compare fragment vs whole
+		instance2.Sum() == instance3.InterimSum())
+	// Output: Sum for instance1 == InterimSum for instance2: true
+	// Final Sum for instance2 == Sum for instance3: true
+}
 
-//func ExampleNew() {
-//	var instance Hasher
-//	instance = New()
-//	fmt.Println(instance.HashAlgorithm(), None)
-//	// Output: 0 0
-//}
+func ExampleSha512_InterimSum() {
+	var instance1 = New(Sha512).Write([]byte("Message goes here"))    // This one will be finalized
+	var instance2 = New(Sha512).Write([]byte("Message goes here"))    // This one will have two segments
+	fmt.Printf("Sum for instance1 == InterimSum for instance2: %v\n", // Sum/Interim should equal
+		instance1.Sum() == instance2.InterimSum())
+	instance2.Write([]byte(" - and another message segment here")) // Add another segment, then whole
+	var instance3 = New(Sha512).Write([]byte("Message goes here - and another message segment here"))
+	fmt.Printf("Final Sum for instance2 == Sum for instance3: %v", // Compare fragment vs whole
+		instance2.Sum() == instance3.InterimSum())
+	// Output: Sum for instance1 == InterimSum for instance2: true
+	// Final Sum for instance2 == Sum for instance3: true
+}
 
-//func ExampleNew_sha256() {
-//	var instance Hasher
-//	instance = New(Sha256)
-//	fmt.Println(instance.HashAlgorithm(), Sha256)
-//	// Output: 2 2
-//}
+func ExampleSha512t224_InterimSum() {
+	var instance1 = New(Sha512t224).Write([]byte("Message goes here")) // This one will be finalized
+	var instance2 = New(Sha512t224).Write([]byte("Message goes here")) // This one will have two segments
+	fmt.Printf("Sum for instance1 == InterimSum for instance2: %v\n",  // Sum/Interim should equal
+		instance1.Sum() == instance2.InterimSum())
+	instance2.Write([]byte(" - and another message segment here")) // Add another segment, then whole
+	var instance3 = New(Sha512t224).Write([]byte("Message goes here - and another message segment here"))
+	fmt.Printf("Final Sum for instance2 == Sum for instance3: %v", // Compare fragment vs whole
+		instance2.Sum() == instance3.InterimSum())
+	// Output: Sum for instance1 == InterimSum for instance2: true
+	// Final Sum for instance2 == Sum for instance3: true
+}
+
+func ExampleSha512t256_InterimSum() {
+	var instance1 = New(Sha512t256).Write([]byte("Message goes here")) // This one will be finalized
+	var instance2 = New(Sha512t256).Write([]byte("Message goes here")) // This one will have two segments
+	fmt.Printf("Sum for instance1 == InterimSum for instance2: %v\n",  // Sum/Interim should equal
+		instance1.Sum() == instance2.InterimSum())
+	instance2.Write([]byte(" - and another message segment here")) // Add another segment, then whole
+	var instance3 = New(Sha512t256).Write([]byte("Message goes here - and another message segment here"))
+	fmt.Printf("Final Sum for instance2 == Sum for instance3: %v", // Compare fragment vs whole
+		instance2.Sum() == instance3.InterimSum())
+	// Output: Sum for instance1 == InterimSum for instance2: true
+	// Final Sum for instance2 == Sum for instance3: true
+}
+
+func ExampleSha224_Sum() {
+	var instance = New(Sha224).Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [117 160 150 92 3 235 194 97 207 145 106 35 43 150 26 27 56 132 215 253 150 169 130 54 134 8 116 86]
+}
+
+func ExampleSha256_Sum() {
+	var instance = New(Sha256).Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [64 18 6 183 163 155 254 15 125 66 40 52 186 79 155 25 136 52 48 45 167 36 171 165 236 23 232 223 3 172 115 146]
+}
+
+func ExampleSha384_Sum() {
+	var instance = New(Sha384).Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [168 165 209 227 136 115 182 42 209 89 107 85 189 125 115 141 189 26 131 136 127 233 83 41 161 10 39 159 199 80 149 45 186 163 100 168 83 66 4 45 116 78 215 29 195 239 255 124]
+}
+
+func ExampleSha512_Sum() {
+	var instance = New(Sha512).Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [122 33 97 192 18 120 250 217 235 143 193 29 119 182 70 250 241 118 209 225 90 139 218 89 100 224 64 70 18 50 241 69 88 29 31 154 124 36 115 48 6 85 185 218 135 40 25 183 230 39 0 65 77 129 0 65 92 249 92 9 199 19 214 248]
+}
+
+func ExampleSha512t224_Sum() {
+	var instance = New(Sha512t224).Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [246 135 58 240 202 39 27 63 125 131 74 123 115 0 122 31 244 207 161 43 23 1 91 180 196 192 175 84]
+}
+
+func ExampleSha512t256_Sum() {
+	var instance = New(Sha512t256).Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [129 220 114 216 230 50 53 182 207 210 10 169 255 3 69 60 90 107 243 87 155 217 198 148 241 175 168 75 224 23 8 77]
+}
+
+func ExampleSha224_Write() {
+	var instance = New(Sha224).
+		Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [117 160 150 92 3 235 194 97 207 145 106 35 43 150 26 27 56 132 215 253 150 169 130 54 134 8 116 86]
+}
+
+func ExampleSha256_Write() {
+	var instance = New(Sha256).
+		Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [64 18 6 183 163 155 254 15 125 66 40 52 186 79 155 25 136 52 48 45 167 36 171 165 236 23 232 223 3 172 115 146]
+}
+
+func ExampleSha384_Write() {
+	var instance = New(Sha384).
+		Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [168 165 209 227 136 115 182 42 209 89 107 85 189 125 115 141 189 26 131 136 127 233 83 41 161 10 39 159 199 80 149 45 186 163 100 168 83 66 4 45 116 78 215 29 195 239 255 124]
+}
+
+func ExampleSha512_Write() {
+	var instance = New(Sha512).
+		Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [122 33 97 192 18 120 250 217 235 143 193 29 119 182 70 250 241 118 209 225 90 139 218 89 100 224 64 70 18 50 241 69 88 29 31 154 124 36 115 48 6 85 185 218 135 40 25 183 230 39 0 65 77 129 0 65 92 249 92 9 199 19 214 248]
+}
+
+func ExampleSha512t224_Write() {
+	var instance = New(Sha512t224).
+		Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [246 135 58 240 202 39 27 63 125 131 74 123 115 0 122 31 244 207 161 43 23 1 91 180 196 192 175 84]
+}
+
+func ExampleSha512t256_Write() {
+	var instance = New(Sha512t256).
+		Write([]byte("Message goes here"))
+	fmt.Printf("Sum: %v", instance.Sum())
+	// Output: Sum: [129 220 114 216 230 50 53 182 207 210 10 169 255 3 69 60 90 107 243 87 155 217 198 148 241 175 168 75 224 23 8 77]
+}
+
 //
-//func ExampleNew_sha512() {
-//	var instance Hasher
-//	instance = New(Sha512)
-//	fmt.Println(instance.HashAlgorithm(), Sha512)
-//	// Output: 4 4
-//}
-
-//func ExampleHasher_Init() {
-//	var instance Hasher
-//	instance = New()
-//	instance.init(Sha256)
-//	fmt.Println(instance.HashAlgorithm(), Sha256)
-//	// Output: 2 2
-//}
+// Functional tests
 //
-//func ExampleHasher_Init_fluent() {
-//	var instance Hasher
-//	instance = New().init(Sha512)
-//	fmt.Println(instance.HashAlgorithm(), Sha512)
-//	// Output: 4 4
-//}
 
-func ExampleHasher_HashAlgorithm() {
-	var instance = New(Sha256)
-	var hashAlgorithm = instance.HashAlgorithm()
-	fmt.Println(hashAlgorithm, Sha256)
-	// Output: 2 2
-
-}
-
-func ExampleHasher_Write() {
-	var instance Hasher
-	instance = New(Sha256)
-	instance.Write([]byte("a message"))
-	fmt.Println(instance.Sum())
-	// Output: [245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
-}
-
-func ExampleHasher_Write_fluent() {
-	var instance Hasher
-	instance = New(Sha256).Write([]byte("a message"))
-	fmt.Println(instance.Sum())
-	// Output: [245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
-}
-
-func ExampleHasher_Write_multiple() {
-	var instance Hasher
-	instance = New(Sha256).Write([]byte("a message")).Write([]byte("another optional segment"))
-	instance.Write([]byte("this is good for streaming applications"))
-	fmt.Println(instance.Sum())
-	// Output: [122 247 122 79 222 228 168 188 61 59 32 213 122 246 247 145 34 166 192 225 110 145 228 59 99 53 78 100 55 117 214 124]
-}
-
-func ExampleHasher_Sum() {
-	var instance Hasher
-	instance = New(Sha256).Write([]byte("a message"))
-	sum := instance.Sum()
-	fmt.Println(sum)
-	// Output: [245 60 9 202 57 113 122 69 198 45 154 202 143 129 19 237 219 253 95 129 220 171 11 51 177 193 131 64 117 34 94 104]
-}
-
-func ExampleHasher_Sum_fluent() {
-	var instance Hasher
-	instance = New(Sha256)
-	var sum = instance.Write([]byte("a message")).Write([]byte("another optional segment")).Sum()
-	fmt.Println(sum)
-	// Output: [252 16 58 203 75 29 177 225 67 41 16 151 176 98 11 131 31 119 53 170 216 249 212 142 119 85 1 15 140 208 80 29]
-}
-
-/*
-Test the constructor and initialization
-*/
-
-func TestNew(t *testing.T) {
-	var expected = Sha256
-	instance = New(expected)
-	assertEquals(t, expected, instance.HashAlgorithm(), "")
-}
-
-//func TestNewInit(t *testing.T) {
-//	var expected = Sha256
-//	instance = New().init(expected)
-//	assertEquals(t, expected, instance.HashAlgorithm(), "")
-//}
-
-func TestEmpty(t *testing.T) {
-	var message []byte
-	instance = New(Sha256)
-	actual := instance.Write(message).Sum()
-	expected := sha256.Sum256(message)
-	assertEquals(t, expected, actual, "")
-}
-
-/*
-Test each hasher256 algorithm with short single messages
-*/
-
-func TestSha256ShortSingles(t *testing.T) {
-
+func TestSha224_Sum_ShortSingles(t *testing.T) {
 	var testCases = []string{
-		"abc", "hello there", "a little longer this time", "this is still within one block and more and ...",
+		"abc", "hello there", "a little longer this time", "this is still within one block ...",
 	}
-
 	for _, tt := range testCases {
-		instance = New(Sha256)
-		actual := instance.
+		actual := New(Sha224).
+			Write([]byte(tt)).
+			Sum()
+		expected := sha256.Sum224([]byte(tt))
+		assertEquals(t, expected, actual, fmt.Sprintf("message=%v", tt))
+	}
+}
+
+func TestSha256_Sum_ShortSingles(t *testing.T) {
+	var testCases = []string{
+		"abc", "hello there", "a little longer this time", "this is still within one block ...",
+	}
+	for _, tt := range testCases {
+		actual := New(Sha256).
 			Write([]byte(tt)).
 			Sum()
 		expected := sha256.Sum256([]byte(tt))
-		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
+		assertEquals(t, expected, actual, fmt.Sprintf("message=%v", tt))
 	}
 }
 
-func TestSha224ShortSingles(t *testing.T) {
-
+func TestSha384_Sum_ShortSingles(t *testing.T) {
 	var testCases = []string{
-		"abc", "hello there", "a little longer this time", "this is still within one block and more and ...",
+		"abc", "hello there", "a little longer this time", "this is still within one block ...",
 	}
-
 	for _, tt := range testCases {
-		instance = New(Sha224) //.init(Sha224)
-		actual := instance.Write([]byte(tt)).Sum()
-		expected := sha256.Sum224([]byte(tt))
-		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
-	}
-}
-
-func TestSha512ShortSingles(t *testing.T) {
-
-	var testCases = []string{
-		"abc", "hello there", "a little longer this time", "this is still within one block and more and ...",
-	}
-
-	for _, tt := range testCases {
-		instance = New(Sha512)
-		actual := instance.Write([]byte(tt)).Sum()
-		expected := sha512.Sum512([]byte(tt))
-		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
-	}
-}
-
-func TestSha384ShortSingles(t *testing.T) {
-
-	var testCases = []string{
-		"abc", "hello there", "a little longer this time", "this is still within one block and more and ...",
-	}
-
-	for _, tt := range testCases {
-		instance = New(Sha384)
-		actual := instance.Write([]byte(tt)).Sum()
+		actual := New(Sha384).
+			Write([]byte(tt)).
+			Sum()
 		expected := sha512.Sum384([]byte(tt))
-		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
+		assertEquals(t, expected, actual, fmt.Sprintf("message=%v", tt))
 	}
 }
 
-func TestSha512t224ShortSingles(t *testing.T) {
-
+func TestSha512_Sum_ShortSingles(t *testing.T) {
 	var testCases = []string{
-		"abc", "hello there", "a little longer this time", "this is still within one block and more and ...",
+		"abc", "hello there", "a little longer this time", "this is still within one block ...",
 	}
-
 	for _, tt := range testCases {
-		instance = New(Sha512t224)
-		actual := instance.Write([]byte(tt)).Sum()
+		actual := New(Sha512).
+			Write([]byte(tt)).
+			Sum()
+		expected := sha512.Sum512([]byte(tt))
+		assertEquals(t, expected, actual, fmt.Sprintf("message=%v", tt))
+	}
+}
+
+func TestSha512t224_Sum_ShortSingles(t *testing.T) {
+	var testCases = []string{
+		"abc", "hello there", "a little longer this time", "this is still within one block ...",
+	}
+	for _, tt := range testCases {
+		actual := New(Sha512t224).
+			Write([]byte(tt)).
+			Sum()
 		expected := sha512.Sum512_224([]byte(tt))
-		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
+		assertEquals(t, expected, actual, fmt.Sprintf("message=%v", tt))
 	}
 }
 
-func TestSha512t256ShortSingles(t *testing.T) {
-
+func TestSha512t256_Sum_ShortSingles(t *testing.T) {
 	var testCases = []string{
-		"abc", "hello there", "a little longer this time", "this is still within one block and more and ...",
+		"abc", "hello there", "a little longer this time", "this is still within one block ...",
 	}
-
 	for _, tt := range testCases {
-		instance = New(Sha512t256)
-		actual := instance.Write([]byte(tt)).Sum()
+		actual := New(Sha512t256).
+			Write([]byte(tt)).
+			Sum()
 		expected := sha512.Sum512_256([]byte(tt))
-		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", len(tt)))
+		assertEquals(t, expected, actual, fmt.Sprintf("message=%v", tt))
 	}
 }
 
-/*
-Test 256/512 hasher256 algorithm with short combo messages (for streaming etc)
-*/
+func TestSha224_Sum_ShortCombos(t *testing.T) {
+	var a, b = "abc", "def"
+	actual := New(Sha224).Write([]byte(a)).Write([]byte(b)).Sum()
+	expected := sha256.Sum224([]byte(a + b))
+	assertEquals(t, expected, actual, a+b)
+}
 
-func TestSha256ShortCombos(t *testing.T) {
-
-	var a = "abc"
-	var b = "def"
-
-	instance = New(Sha256)
-	actual := instance.Write([]byte(a)).Write([]byte(b)).Sum()
+func TestSha256_Sum_ShortCombos(t *testing.T) {
+	var a, b = "abc", "def"
+	actual := New(Sha256).Write([]byte(a)).Write([]byte(b)).Sum()
 	expected := sha256.Sum256([]byte(a + b))
-	assertEquals(t, expected, actual, "")
-
+	assertEquals(t, expected, actual, a+b)
 }
 
-func TestSha512ShortCombos(t *testing.T) {
+func TestSha384_Sum_ShortCombos(t *testing.T) {
+	var a, b = "abc", "def"
+	actual := New(Sha384).Write([]byte(a)).Write([]byte(b)).Sum()
+	expected := sha512.Sum384([]byte(a + b))
+	assertEquals(t, expected, actual, a+b)
+}
 
-	var a = "abc"
-	var b = "def"
-
-	instance = New(Sha512)
-	actual := instance.Write([]byte(a)).Write([]byte(b)).Sum()
+func TestSha512_Sum_ShortCombos(t *testing.T) {
+	var a, b = "abc", "def"
+	actual := New(Sha512).Write([]byte(a)).Write([]byte(b)).Sum()
 	expected := sha512.Sum512([]byte(a + b))
-	assertEquals(t, expected, actual, "")
-
+	assertEquals(t, expected, actual, a+b)
 }
 
-/*
-Test 256/512 hasher256 algorithm with messages that span each step of multiple blocks
-*/
+func TestSha512t224_Sum_ShortCombos(t *testing.T) {
+	var a, b = "abc", "def"
+	actual := New(Sha512t224).Write([]byte(a)).Write([]byte(b)).Sum()
+	expected := sha512.Sum512_224([]byte(a + b))
+	assertEquals(t, expected, actual, a+b)
+}
 
-func TestSha256MediumSingles(t *testing.T) {
+func TestSha512t256_Sum_ShortCombos(t *testing.T) {
+	var a, b = "abc", "def"
+	actual := New(Sha512t256).Write([]byte(a)).Write([]byte(b)).Sum()
+	expected := sha512.Sum512_256([]byte(a + b))
+	assertEquals(t, expected, actual, a+b)
+}
 
-	for length := 10; length < 550; length++ {
+func TestSha224_Sum_Medium_Singles(t *testing.T) {
+	for length := 40; length < 340; length++ {
 		message := make([]byte, length)
 		rand.Read(message)
-		instance = New(Sha256)
-		actual := instance.Write([]byte(message)).Sum()
+		actual := New(Sha224).Write([]byte(message)).Sum()
+		expected := sha256.Sum224([]byte(message))
+		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
+	}
+}
+
+func TestSha256_Sum_Medium_Singles(t *testing.T) {
+	for length := 40; length < 340; length++ {
+		message := make([]byte, length)
+		rand.Read(message)
+		actual := New(Sha256).Write([]byte(message)).Sum()
 		expected := sha256.Sum256([]byte(message))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
 	}
 }
 
-func TestSha512MediumSingles(t *testing.T) {
-
-	for length := 10; length < 550; length++ {
+func TestSha384_Sum_Medium_Singles(t *testing.T) {
+	for length := 40; length < 340; length++ {
 		message := make([]byte, length)
 		rand.Read(message)
-		instance = New(Sha512)
-		actual := instance.Write([]byte(message)).Sum()
+		actual := New(Sha384).Write([]byte(message)).Sum()
+		expected := sha512.Sum384([]byte(message))
+		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
+	}
+}
+
+func TestSha512_Sum_Medium_Singles(t *testing.T) {
+	for length := 40; length < 340; length++ {
+		message := make([]byte, length)
+		rand.Read(message)
+		actual := New(Sha512).Write([]byte(message)).Sum()
 		expected := sha512.Sum512([]byte(message))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
 	}
 }
 
-/*
-Test 256/512 hasher256 algorithm with messages of increasing length
-*/
-
-func TestSha256Random(t *testing.T) {
-
-	for length := 4; length < 10000; length++ {
+func TestSha512t224_Sum_Medium_Singles(t *testing.T) {
+	for length := 40; length < 340; length++ {
 		message := make([]byte, length)
 		rand.Read(message)
-		instance = New(Sha256)
-		actual := instance.Write(message).Sum()
-		expected := sha256.Sum256(message)
+		actual := New(Sha512t224).Write([]byte(message)).Sum()
+		expected := sha512.Sum512_224([]byte(message))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
 	}
 }
 
-func TestSha512Random(t *testing.T) {
-
-	for length := 4; length < 10000; length++ {
+func TestSha512t256_Sum_Medium_Singles(t *testing.T) {
+	for length := 40; length < 340; length++ {
 		message := make([]byte, length)
 		rand.Read(message)
-		instance = New(Sha512)
-		actual := instance.Write(message).Sum()
-		expected := sha512.Sum512(message)
+		actual := New(Sha512t256).Write([]byte(message)).Sum()
+		expected := sha512.Sum512_256([]byte(message))
 		assertEquals(t, expected, actual, fmt.Sprintf("length=%v", length))
 	}
 }
 
-/*
-FUZZ EVERYTHING! This also highlights the coolness of streaming writes.
-*/
+func TestSha224_Sum_Medium_Combos(t *testing.T) {
+	for length1 := 40; length1 < 340; length1 = length1 + 4 {
+		for length2 := 40; length2 < 120; length2 = length2 + 4 {
+			message1 := make([]byte, length1)
+			rand.Read(message1)
+			message2 := make([]byte, length2)
+			rand.Read(message2)
+			actual := New(Sha224).Write([]byte(message1)).Write(message2).Sum()
+			expected := sha256.Sum224([]byte((append(message1, message2...))))
+			assertEquals(t, expected, actual, fmt.Sprintf("length=%v / %v", length1, length2))
+		}
+	}
+}
+
+func TestSha256_Sum_Medium_Combos(t *testing.T) {
+	for length1 := 40; length1 < 340; length1 = length1 + 4 {
+		for length2 := 40; length2 < 120; length2 = length2 + 4 {
+			message1 := make([]byte, length1)
+			rand.Read(message1)
+			message2 := make([]byte, length2)
+			rand.Read(message2)
+			actual := New(Sha256).Write([]byte(message1)).Write(message2).Sum()
+			expected := sha256.Sum256([]byte((append(message1, message2...))))
+			assertEquals(t, expected, actual, fmt.Sprintf("length=%v / %v", length1, length2))
+		}
+	}
+}
+
+func TestSha384_Sum_Medium_Combos(t *testing.T) {
+	for length1 := 40; length1 < 340; length1 = length1 + 4 {
+		for length2 := 40; length2 < 120; length2 = length2 + 4 {
+			message1 := make([]byte, length1)
+			rand.Read(message1)
+			message2 := make([]byte, length2)
+			rand.Read(message2)
+			actual := New(Sha384).Write([]byte(message1)).Write(message2).Sum()
+			expected := sha512.Sum384([]byte((append(message1, message2...))))
+			assertEquals(t, expected, actual, fmt.Sprintf("length=%v / %v", length1, length2))
+		}
+	}
+}
+
+func TestSha512_Sum_Medium_Combos(t *testing.T) {
+	for length1 := 40; length1 < 340; length1 = length1 + 4 {
+		for length2 := 40; length2 < 120; length2 = length2 + 4 {
+			message1 := make([]byte, length1)
+			rand.Read(message1)
+			message2 := make([]byte, length2)
+			rand.Read(message2)
+			actual := New(Sha512).Write([]byte(message1)).Write(message2).Sum()
+			expected := sha512.Sum512([]byte((append(message1, message2...))))
+			assertEquals(t, expected, actual, fmt.Sprintf("length=%v / %v", length1, length2))
+		}
+	}
+}
+
+func TestSha512t224_Sum_Medium_Combos(t *testing.T) {
+	for length1 := 40; length1 < 340; length1 = length1 + 4 {
+		for length2 := 40; length2 < 120; length2 = length2 + 4 {
+			message1 := make([]byte, length1)
+			rand.Read(message1)
+			message2 := make([]byte, length2)
+			rand.Read(message2)
+			actual := New(Sha512t224).Write([]byte(message1)).Write(message2).Sum()
+			expected := sha512.Sum512_224([]byte((append(message1, message2...))))
+			assertEquals(t, expected, actual, fmt.Sprintf("length=%v / %v", length1, length2))
+		}
+	}
+}
+
+func TestSha512t256_Sum_Medium_Combos(t *testing.T) {
+	for length1 := 40; length1 < 340; length1 = length1 + 4 {
+		for length2 := 40; length2 < 120; length2 = length2 + 4 {
+			message1 := make([]byte, length1)
+			rand.Read(message1)
+			message2 := make([]byte, length2)
+			rand.Read(message2)
+			actual := New(Sha512t256).Write([]byte(message1)).Write(message2).Sum()
+			expected := sha512.Sum512_256([]byte((append(message1, message2...))))
+			assertEquals(t, expected, actual, fmt.Sprintf("length=%v / %v", length1, length2))
+		}
+	}
+}
 
 func TestFuzzEverything(t *testing.T) {
 
-	for iterations := 0; iterations < 1000; iterations++ {
+	for iterations := 0; iterations < 10000; iterations++ {
 
 		// 5 random message lengths
 		var length1 = rand.Intn(500)
-		var length2 = rand.Intn(100)
+		var length2 = rand.Intn(200)
 		var length3 = rand.Intn(5000)
 		var length4 = rand.Intn(100)
-		var length5 = rand.Intn(500)
+		var length5 = rand.Intn(1000)
 
 		// Each message will have random content
 		message1 := make([]byte, length1)
@@ -420,62 +568,73 @@ func TestFuzzEverything(t *testing.T) {
 
 		bigMsg := append(append(append(append(message1, message2...), message3...), message4...), message5...)
 
-		// Sha256
-		instance = New(Sha256)
-		actual := instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
-		expected1 := sha256.Sum256(bigMsg)
-		assertEquals(t, expected1, actual, fmt.Sprintf("length=%v", len(bigMsg)))
-
 		// Sha224
-		instance = New(Sha224)
-		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
+		actual := New(Sha224).Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
 		expected2 := sha256.Sum224(bigMsg)
 		assertEquals(t, expected2, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 
-		// Sha512
-		instance = New(Sha512)
-		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
-		expected3 := sha512.Sum512(bigMsg)
-		assertEquals(t, expected3, actual, fmt.Sprintf("length=%v", len(bigMsg)))
+		// Sha256
+		actual = New(Sha256).Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
+		expected1 := sha256.Sum256(bigMsg)
+		assertEquals(t, expected1, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 
 		// Sha384
-		instance = New(Sha384)
-		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
+		actual = New(Sha384).Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
 		expected4 := sha512.Sum384(bigMsg)
 		assertEquals(t, expected4, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 
+		// Sha512
+		actual = New(Sha512).Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
+		expected3 := sha512.Sum512(bigMsg)
+		assertEquals(t, expected3, actual, fmt.Sprintf("length=%v", len(bigMsg)))
+
 		// Sha512t224
-		instance = New(Sha512t224)
-		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
+		actual = New(Sha512t224).Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
 		expected5 := sha512.Sum512_224(bigMsg)
 		assertEquals(t, expected5, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 
 		// Sha512t256
-		instance = New(Sha512t256)
-		actual = instance.Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
+		actual = New(Sha512t256).Write(message1).Write(message2).Write(message3).Write(message4).Write(message5).Sum()
 		expected6 := sha512.Sum512_256(bigMsg)
 		assertEquals(t, expected6, actual, fmt.Sprintf("length=%v", len(bigMsg)))
 	}
 }
 
-/*
-Benchmark 256/512 hasher256 algorithms with a random 1MB message. go test -bench=.
-*/
+var hitThis bool
 
-// 1. Before optimization
-//BenchmarkHasherSha256-8   	   50000	     39369 ns/op
-//BenchmarkGolangSha256-8   	  100000	     15993 ns/op
-//BenchmarkHasherSha512-8   	   50000	     25378 ns/op
-//BenchmarkGolangSha512-8   	  200000	     10943 ns/op
+func hitIt(_ ...interface{}) { hitThis = true }
 
-// 2. Changing lenProcesses from bigInt to uint63 helps just under 3%
-// 3. Changing for loop to copy helped very marginally at best
+func TestBadAlgorithmNone(t *testing.T) {
+	LogFatal = hitIt
+	hitThis = false
+	var instance = New(None) // Bad hash algorithm
+	assertEquals(t, true, hitThis, fmt.Sprintf("LogFatal did not hitIt: %v", instance))
+}
 
-// 4. Unrolling of sha256 helps a lot, see below
-//BenchmarkHasherSha256-8   	   50000	     31748 ns/op
-//BenchmarkGolangSha256-8   	  100000	     15987 ns/op
+func TestBadAlgorithm99(t *testing.T) {
+	LogFatal = hitIt
+	hitThis = false
+	var instance = New(99) // Bad hash algorithm
+	assertEquals(t, true, hitThis, fmt.Sprintf("LogFatal did not hitIt: %v", instance))
+}
 
-// 5. Now unroll SHA512!
+func TestBadWriteAfterSum256(t *testing.T) {
+	LogFatal = hitIt
+	hitThis = false
+	var instance = New(Sha256).Write([]byte("message"))
+	var sum = instance.Sum()
+	instance.Write([]byte("this cannot be good"))
+	assertEquals(t, true, hitThis, fmt.Sprintf("LogFatal did not hitIt: %v", sum))
+}
+
+func TestBadWriteAfterSum512(t *testing.T) {
+	LogFatal = hitIt
+	hitThis = false
+	var instance = New(Sha512).Write([]byte("message"))
+	var sum = instance.Sum()
+	instance.Write([]byte("this cannot be good"))
+	assertEquals(t, true, hitThis, fmt.Sprintf("LogFatal did not hitIt: %v", sum))
+}
 
 var bMsg = []byte{0}
 

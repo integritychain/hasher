@@ -226,12 +226,22 @@ func oneBlock256(hasher *hasher256, message []byte) {
 	}
 
 	// Remaining 48 w256 a little more complicated
-	for i := 16; i < 64; i++ {
-		v1 := w256[i-2]
-		t1 := bits.RotateLeft32(v1, -17) ^ bits.RotateLeft32(v1, -19) ^ (v1 >> 10)
-		v2 := w256[i-15]
-		t2 := bits.RotateLeft32(v2, -7) ^ bits.RotateLeft32(v2, -18) ^ (v2 >> 3)
+	for i := 16; i < 64; i = i + 4 {
+		t1 := bits.RotateLeft32(w256[i-2], -17) ^ bits.RotateLeft32(w256[i-2], -19) ^ (w256[i-2] >> 10)
+		t2 := bits.RotateLeft32(w256[i-15], -7) ^ bits.RotateLeft32(w256[i-15], -18) ^ (w256[i-15] >> 3)
 		w256[i] = t1 + w256[i-7] + t2 + w256[i-16]
+
+		t1a := bits.RotateLeft32(w256[i-1], -17) ^ bits.RotateLeft32(w256[i-1], -19) ^ (w256[i-1] >> 10)
+		t2a := bits.RotateLeft32(w256[i-14], -7) ^ bits.RotateLeft32(w256[i-14], -18) ^ (w256[i-14] >> 3)
+		w256[i+1] = t1a + w256[i-6] + t2a + w256[i-15]
+
+		t1b := bits.RotateLeft32(w256[i], -17) ^ bits.RotateLeft32(w256[i], -19) ^ (w256[i] >> 10)
+		t2b := bits.RotateLeft32(w256[i-13], -7) ^ bits.RotateLeft32(w256[i-13], -18) ^ (w256[i-13] >> 3)
+		w256[i+2] = t1b + w256[i-5] + t2b + w256[i-14]
+
+		t1c := bits.RotateLeft32(w256[i+1], -17) ^ bits.RotateLeft32(w256[i+1], -19) ^ (w256[i+1] >> 10)
+		t2c := bits.RotateLeft32(w256[i-12], -7) ^ bits.RotateLeft32(w256[i-12], -18) ^ (w256[i-12] >> 3)
+		w256[i+3] = t1c + w256[i-4] + t2c + w256[i-13]
 	}
 
 	// Initialize working variables

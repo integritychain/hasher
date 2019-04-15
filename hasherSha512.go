@@ -340,12 +340,22 @@ func oneBlock512(hasher *hasher512, message []byte) {
 	}
 
 	// Remaining 64 w512 a little more complicated
-	for i := 16; i < 80; i++ {
-		v1 := w512[i-2]
-		t1 := bits.RotateLeft64(v1, -19) ^ bits.RotateLeft64(v1, -61) ^ (v1 >> 6)
-		v2 := w512[i-15]
-		t2 := bits.RotateLeft64(v2, -1) ^ bits.RotateLeft64(v2, -8) ^ (v2 >> 7)
+	for i := 16; i < 80; i = i + 4 {
+		t1 := bits.RotateLeft64(w512[i-2], -19) ^ bits.RotateLeft64(w512[i-2], -61) ^ (w512[i-2] >> 6)
+		t2 := bits.RotateLeft64(w512[i-15], -1) ^ bits.RotateLeft64(w512[i-15], -8) ^ (w512[i-15] >> 7)
 		w512[i] = t1 + w512[i-7] + t2 + w512[i-16]
+
+		t1a := bits.RotateLeft64(w512[i-1], -19) ^ bits.RotateLeft64(w512[i-1], -61) ^ (w512[i-1] >> 6)
+		t2a := bits.RotateLeft64(w512[i-14], -1) ^ bits.RotateLeft64(w512[i-14], -8) ^ (w512[i-14] >> 7)
+		w512[i+1] = t1a + w512[i-6] + t2a + w512[i-15]
+
+		t1b := bits.RotateLeft64(w512[i], -19) ^ bits.RotateLeft64(w512[i], -61) ^ (w512[i] >> 6)
+		t2b := bits.RotateLeft64(w512[i-13], -1) ^ bits.RotateLeft64(w512[i-13], -8) ^ (w512[i-13] >> 7)
+		w512[i+2] = t1b + w512[i-5] + t2b + w512[i-14]
+
+		t1c := bits.RotateLeft64(w512[i+1], -19) ^ bits.RotateLeft64(w512[i+1], -61) ^ (w512[i+1] >> 6)
+		t2c := bits.RotateLeft64(w512[i-12], -1) ^ bits.RotateLeft64(w512[i-12], -8) ^ (w512[i-12] >> 7)
+		w512[i+3] = t1c + w512[i-4] + t2c + w512[i-13]
 	}
 
 	// Initialize working variables

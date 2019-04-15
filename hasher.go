@@ -1,10 +1,10 @@
-// Package hasher implements the full SHA2 family of secure hasher256 algorithms from FIPS PUB 180-4.
+// Package hasher provides the full SHA2 family of secure hash algorithms from FIPS PUB 180-4.
 // It supports a fluent interface for easy and flexible usage, maximal encapsulation for isolation
-// and maintainability, multi-step hashing for large or streaming structures, and is compatible with
-// dependency injection strategies to simplify testability. Because this package deals with sensitive
-// information and problems stem more from "design time" than "run time" errors, the code "fails fast
-// and fails hard" upon incorrect usage. There are no dependencies on outside packages. FIPS PUB
-// 180-4 may be found at https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
+// and maintainability, interim sums for protocols requiring intermediate results, and multi-step
+// hashing for large and/or streaming applications. Because this package deals with potentially
+// sensitive information and problems typically stem more from "design time" than "run time" errors,
+// the code "fails fast and fails hard" upon incorrect usage. There are no dependencies on packages
+// outside of the standard library. FIPS PUB 180-4 may be found at https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
 package hasher
 
 import (
@@ -12,10 +12,7 @@ import (
 	"log"
 )
 
-// TODO
-// 2. Rebuild tests: include max length, interim sum ... everything; measure coverage -> 100%
-// 3. Revise documentation, make an asciidocstub/makefile
-
+// TODO:    Create discussion.adoc document
 // Argghhh: GoDoc does not detected exported methods of un-exported structs? #528
 //          https://github.com/golang/gddo/issues/528
 
@@ -46,7 +43,7 @@ const (
 var LogFatal = log.Fatal
 
 // New constructs a fresh instance of the specified HashAlgorithm
-func New(hashAlgorithm HashAlgorithm) interface{ Hasher } {
+func New(hashAlgorithm HashAlgorithm) Hasher {
 	switch hashAlgorithm {
 	case Sha224:
 		return new(sha224).init(Sha224)
@@ -60,8 +57,10 @@ func New(hashAlgorithm HashAlgorithm) interface{ Hasher } {
 		return new(sha512t224).init(Sha512t224)
 	case Sha512t256:
 		return new(sha512t256).init(Sha512t256)
+	case None:
+		LogFatal("HashAlgorithm \"None\" specified")
 	default:
-		LogFatal("Unknown (or None) hashAlgorithm")
+		LogFatal("Unknown hashAlgorithm")
 	}
 	return nil
 }
